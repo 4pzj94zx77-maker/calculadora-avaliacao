@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="pt-PT">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#004a98" />
+    <meta
+      name="description"
+      content="Calculadora de avaliação bancária para aquisição de imóveis com diferentes percentagens de LTV."
+    />
+    <title>Calculadora de Avaliação Bancária | RE/MAX Grupo Vantagem</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/png" href="assets/icons/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-labelledby="page-title">
+      <section class="calculator-panel">
+        <header class="brand-header">
+          <button class="logo-button" id="resetButton" type="button" aria-label="Limpar calculadora">
+            <img
+              class="brand-logo"
+              src="assets/logo-horizontal.png"
+              alt="RE/MAX Grupo Vantagem"
+              width="2000"
+              height="556"
+            />
+          </button>
+        </header>
+
+        <div class="title-block">
+          <h1 id="page-title">Avaliação Bancária</h1>
+          <p>Simule o valor de avaliação necessário para o cenário de financiamento.</p>
+        </div>
+
+        <form class="calculator-form" id="calculatorForm">
+          <label class="field" for="propertyValue">
+            <span>Valor do imóvel</span>
+            <span class="money-input">
+              <input
+                id="propertyValue"
+                name="propertyValue"
+                type="text"
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="0"
+              />
+              <span aria-hidden="true">€</span>
+            </span>
+          </label>
+
+          <fieldset class="signal-field">
+            <legend>Sinal entregue</legend>
+            <div class="signal-mode" role="radiogroup" aria-label="Tipo de sinal">
+              <label>
+                <input type="radio" name="signalMode" value="percent" checked />
+                <span>%</span>
+              </label>
+              <label>
+                <input type="radio" name="signalMode" value="amount" />
+                <span>€</span>
+              </label>
+            </div>
+            <label class="field compact-field" for="signalValue">
+              <span class="visually-hidden">Valor do sinal</span>
+              <span class="money-input signal-input">
+                <input
+                  id="signalValue"
+                  name="signalValue"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  placeholder="0"
+                />
+                <span id="signalSuffix" aria-hidden="true">%</span>
+              </span>
+            </label>
+          </fieldset>
+
+          <fieldset class="ltv-field">
+            <legend>LTV</legend>
+            <div class="ltv-options" role="radiogroup" aria-label="Percentagem LTV">
+              <label>
+                <input type="radio" name="ltv" value="80" checked />
+                <span>80%</span>
+              </label>
+              <label>
+                <input type="radio" name="ltv" value="85" />
+                <span>85%</span>
+              </label>
+              <label>
+                <input type="radio" name="ltv" value="90" />
+                <span>90%</span>
+              </label>
+              <label>
+                <input type="radio" name="ltv" value="100" />
+                <span>100%</span>
+              </label>
+            </div>
+          </fieldset>
+        </form>
+
+        <section class="result-panel" aria-live="polite" aria-atomic="true">
+          <div>
+            <p class="result-label">Avaliação necessária</p>
+            <strong id="requiredValuation">0 €</strong>
+            <p class="result-context" id="resultContext">
+              Introduza o valor do imóvel.
+            </p>
+          </div>
+        </section>
+
+        <dl class="summary-list">
+          <div>
+            <dt>Financiamento estimado</dt>
+            <dd id="estimatedLoan">0 €</dd>
+          </div>
+          <div>
+            <dt>Sinal considerado</dt>
+            <dd id="consideredSignal">0 €</dd>
+          </div>
+        </dl>
+
+        <p class="legal-note">
+          Valores indicativos. A aprovação depende da avaliação bancária e da análise
+          da instituição financeira.
+        </p>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
