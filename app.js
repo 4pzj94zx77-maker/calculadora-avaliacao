@@ -97,6 +97,7 @@ const output = {
   weightedArea: document.querySelector("#weightedArea"),
   zonePrice: document.querySelector("#zonePrice"),
   sirPriceAverage: document.querySelector("#sirPriceAverage"),
+  inputPriceAverage: document.querySelector("#inputPriceAverage"),
   potentialCost: document.querySelector("#potentialCost"),
   builtCost: document.querySelector("#builtCost"),
   privateValue: document.querySelector("#privateValue"),
@@ -151,6 +152,7 @@ const printOutput = {
   landArea: document.querySelector("#printLandArea"),
   zonePrice: document.querySelector("#printZonePrice"),
   sirPriceAverage: document.querySelector("#printSirPriceAverage"),
+  inputPriceAverage: document.querySelector("#printInputPriceAverage"),
   condition: document.querySelector("#printCondition"),
   propertyType: document.querySelector("#printPropertyType"),
   landType: document.querySelector("#printLandType"),
@@ -666,19 +668,26 @@ function getValuationNote(valuation) {
     ? `Custo por m² de construção potencial = valor do terreno dividido por ${formatArea(valuation.buildableArea)} de construção permitida.`
     : "Para calcular o custo por m² de construção potencial, indica a área bruta de construção permitida.";
   const negotiationNote = `O preço recomendado é ${formatCurrency(valuation.recommendedSaleValue)}. O preço de entrada sugerido é ${formatCurrency(valuation.listingPriceValue)}, com margem adicional de ${formatPercentage(valuation.negotiationMarginPercent)} para negociação.`;
+  const priceNote = valuation.pricePerSqmReferenceSource === "manual"
+    ? `O preço central usa a média manual de ${formatCurrency(valuation.pricePerSqmInputMean).replace(/\s?€/g, "")} €/m² entre os valores P25 e P75 introduzidos.`
+    : valuation.sirPriceMean
+    ? `O preço central usa a média SIR de ${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m².`
+    : "O preço central usa o ponto médio do intervalo introduzido.";
 
   if (valuation.condition === "renovated") {
-    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização de remodelação entre 5% e 20%. ${negotiationNote}`;
+    return `${baseNote} ${priceNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização de remodelação entre 5% e 20%. ${negotiationNote}`;
   }
   if (valuation.condition === "new") {
-    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização entre 5% e 10%. ${negotiationNote}`;
+    return `${baseNote} ${priceNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização entre 5% e 10%. ${negotiationNote}`;
   }
-  return `${baseNote} ${landNote} ${potentialNote} ${negotiationNote}`;
+  return `${baseNote} ${priceNote} ${landNote} ${potentialNote} ${negotiationNote}`;
 }
 
 function getResultNote(valuation) {
   const baseNote = "Estimativa indicativa: área dependente calculada a 25% da área bruta privativa para efeitos de ponderação.";
-  const sirNote = valuation.sirPriceMean
+  const sirNote = valuation.pricePerSqmReferenceSource === "manual"
+    ? `Como os valores foram alterados manualmente, o preço correcto usa a média do intervalo introduzido de ${formatCurrency(valuation.pricePerSqmInputMean).replace(/\s?€/g, "")} €/m²; ${valuation.sirPriceMean ? `a média SIR de ${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m² mantém-se como referência externa.` : "não existe média SIR disponível como referência externa."}`
+    : valuation.sirPriceMean
     ? `O preço correto usa a média SIR de ${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²; o intervalo apresentado usa P25–P75.`
     : valuation.inePriceMean
     ? `Sem correspondência SIR; foi usada a mediana INE de ${formatCurrency(valuation.inePriceMean).replace(/\s?€/g, "")} €/m² como referência única.`
@@ -690,7 +699,7 @@ function getResultNote(valuation) {
     : "Se existir construção permitida no terreno, podes indicá-la para obter o custo por m² de construção potencial.";
 
   if (valuation.condition === "new" || valuation.condition === "renovated") {
-    return `${baseNote} ${potentialNote} O intervalo final inclui a valorização aplicável aos dados escolhidos.`;
+    return `${baseNote} ${sirNote} ${potentialNote} O intervalo final inclui a valorização aplicável aos dados escolhidos.`;
   }
   return `${baseNote} ${sirNote} ${potentialNote}`;
 }
@@ -704,6 +713,11 @@ const sirDataState = {
 };
 if (typeof window !== "undefined") window.sirDataState = sirDataState;
 let sirPriceManuallyEdited = false;
+if (typeof window !== "undefined") {
+  window.setSirPriceManuallyEdited = (value) => {
+    sirPriceManuallyEdited = Boolean(value);
+  };
+}
 
 function normaliseSirText(value) {
   return normalizeForExtraction(value || "").replace(/[ºª]/g, "").trim();
@@ -1426,7 +1440,9 @@ function getValuation() {
   const pricePerSqmHigh = priceRange.high;
   const sirPriceMean = Number.isFinite(sirDataState.lastMatch?.mean) ? sirDataState.lastMatch.mean : 0;
   const inePriceMean = Number.isFinite(ineDataState.lastMatch?.mean) ? ineDataState.lastMatch.mean : 0;
-  const pricePerSqmReference = sirPriceMean || (pricePerSqmLow + pricePerSqmHigh) / 2;
+  const pricePerSqmInputMean = (pricePerSqmLow + pricePerSqmHigh) / 2;
+  const pricePerSqmReferenceSource = sirPriceManuallyEdited ? "manual" : sirPriceMean ? "sir" : "interval";
+  const pricePerSqmReference = pricePerSqmReferenceSource === "sir" ? sirPriceMean : pricePerSqmInputMean;
 
   const privateLowValue = privateArea * pricePerSqmLow;
   const privateHighValue = privateArea * pricePerSqmHigh;
@@ -1485,7 +1501,9 @@ function getValuation() {
     buildableArea,
     pricePerSqmLow,
     pricePerSqmHigh,
+    pricePerSqmInputMean,
     pricePerSqmReference,
+    pricePerSqmReferenceSource,
     sirPriceMean,
     inePriceMean,
     privateLowValue,
@@ -1549,6 +1567,9 @@ function render() {
   if (output.sirPriceAverage) {
     output.sirPriceAverage.textContent = valuation.sirPriceMean ? `${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²` : "Sem média SIR";
   }
+  if (output.inputPriceAverage) {
+    output.inputPriceAverage.textContent = valuation.pricePerSqmInputMean ? `${formatCurrency(valuation.pricePerSqmInputMean).replace(/\s?€/g, "")} €/m²` : "Sem valores introduzidos";
+  }
   output.potentialCost.textContent = potentialCost;
   output.builtCost.textContent = builtCost;
   output.privateValue.textContent = formatCurrencyRange(valuation.privateLowValue, valuation.privateHighValue);
@@ -1575,6 +1596,9 @@ function render() {
   printOutput.zonePrice.textContent = zonePrice;
   if (printOutput.sirPriceAverage) {
     printOutput.sirPriceAverage.textContent = valuation.sirPriceMean ? `${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²` : "Sem média SIR";
+  }
+  if (printOutput.inputPriceAverage) {
+    printOutput.inputPriceAverage.textContent = valuation.pricePerSqmInputMean ? `${formatCurrency(valuation.pricePerSqmInputMean).replace(/\s?€/g, "")} €/m²` : "Sem valores introduzidos";
   }
   printOutput.condition.textContent = valuation.conditionLabel;
   printOutput.propertyType.textContent = valuation.propertyTypeLabel;

@@ -253,3 +253,21 @@ test("separa o preço recomendado do preço de entrada com margem de negociaçã
   assert.equal(noMarginValuation.negotiationMarginPercent, 0);
   assert.equal(noMarginValuation.listingPriceValue, 100000);
 });
+
+test("ao alterar P25 e P75, usa a média manual no preço central e mantém a média SIR", () => {
+  const app = loadApplication();
+  fillRequiredFields(app);
+  app.element("#locality").value = "Santarém";
+  app.element("#pricePerSqmLow").value = "2000";
+  app.element("#pricePerSqmHigh").value = "2400";
+  app.context.window.sirDataState.loaded = true;
+  app.context.window.sirDataState.lastMatch = { mean: 1525 };
+  app.context.window.setSirPriceManuallyEdited(true);
+
+  const valuation = app.context.getValuation();
+
+  assert.equal(valuation.sirPriceMean, 1525);
+  assert.equal(valuation.pricePerSqmInputMean, 2200);
+  assert.equal(valuation.pricePerSqmReference, 2200);
+  assert.equal(valuation.pricePerSqmReferenceSource, "manual");
+});
