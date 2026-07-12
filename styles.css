@@ -367,6 +367,13 @@ select:focus {
   box-shadow: 0 0 0 4px var(--focus);
 }
 
+.sir-price-source {
+  margin: -0.35rem 0 0.9rem;
+  color: #52627a;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
 select:disabled {
   color: var(--muted);
   background-color: #f3f6fb;

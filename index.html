@@ -60,9 +60,16 @@
             <input id="street" name="street" type="text" autocomplete="street-address" maxlength="180" required placeholder="Ex.: Rua das Flores, nº 10, 1000-001" />
           </div>
 
-          <div class="field-group">
-            <label for="locality">Localidade</label>
-            <input id="locality" name="locality" type="text" autocomplete="address-level2" maxlength="90" required placeholder="Ex.: Lisboa" />
+          <div class="split-fields">
+            <div class="field-group">
+              <label for="locality">Concelho</label>
+              <input id="locality" name="locality" type="text" autocomplete="address-level2" maxlength="90" required placeholder="Ex.: Lisboa" />
+            </div>
+
+            <div class="field-group">
+              <label for="parish">Freguesia</label>
+              <input id="parish" name="parish" type="text" autocomplete="address-level3" maxlength="120" placeholder="Extraída da caderneta ou preenchida manualmente" />
+            </div>
           </div>
 
           <div class="field-group">
@@ -100,7 +107,6 @@
               </div>
             </div>
           </div>
-
           <div class="split-fields">
             <div class="field-group">
               <label for="pricePerSqmLow">Preço m² mínimo</label>
@@ -118,6 +124,7 @@
               </div>
             </div>
           </div>
+          <p class="sir-price-source" id="sirPriceSource">A carregar dados SIR...</p>
 
           <div class="split-fields">
             <div class="field-group">
@@ -429,6 +436,6 @@
     </main>
 
     <script type="module" src="assets/tesseract/ocr-loader.js?v=7.0.0"></script>
-    <script src="app.js?v=20260712-6"></script>
+    <script src="app.js?v=20260712-7"></script>
   </body>
 </html>

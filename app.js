@@ -5,6 +5,10 @@ const MAX_PDF_PAGES = 20;
 const MIN_EXTRACTED_TEXT_LENGTH = 80;
 const PDF_LINE_Y_TOLERANCE = 3;
 const OCR_RENDER_SCALE = 2;
+const SIR_LOCAL_DATA_URL = "./data/sir-mercado.json";
+// Preenche este URL apenas quando a folha tiver uma publicação CSV autorizada.
+// A aplicação mantém a cópia local como fallback para não falhar sem rede.
+const SIR_GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CixDatu7TlLpKJ0ItZuutb8VWIbg5eHivTkk1h4D1WI/gviz/tq?tqx=out:csv&sheet=Dados%20SIR";
 
 const LAND_REFERENCES = {
   none: {
@@ -56,6 +60,7 @@ const fields = {
   clientName: document.querySelector("#clientName"),
   street: document.querySelector("#street"),
   locality: document.querySelector("#locality"),
+  parish: document.querySelector("#parish"),
   propertyType: document.querySelector("#propertyType"),
   condition: document.querySelector("#condition"),
   privateArea: document.querySelector("#privateArea"),
@@ -87,6 +92,7 @@ const output = {
   detailDependentArea: document.querySelector("#detailDependentArea"),
   detailWeightedArea: document.querySelector("#detailWeightedArea"),
   detailBaseValue: document.querySelector("#detailBaseValue"),
+  sirPriceSource: document.querySelector("#sirPriceSource"),
 };
 
 const pdfButton = document.querySelector("#pdfButton");
@@ -108,6 +114,7 @@ const EXTRACTION_FIELDS = [
   { key: "clientName", label: "Nome do cliente", confidence: "low" },
   { key: "street", label: "Morada", confidence: "medium" },
   { key: "locality", label: "Localidade", confidence: "medium" },
+  { key: "parish", label: "Freguesia", confidence: "medium" },
   { key: "propertyType", label: "Tipo de imóvel", confidence: "high" },
   { key: "privateArea", label: "Área bruta privativa", confidence: "high" },
   { key: "dependentArea", label: "Área dependente", confidence: "high" },
@@ -193,11 +200,12 @@ function cleanExtractedText(value) {
 
 function toDisplayText(value) {
   const cleaned = cleanExtractedText(value);
-  if (!cleaned || /[a-záàâãéèêíìóòôõúùç]/.test(cleaned)) return cleaned;
+  const hasLowercaseLetters = /[a-záàâãéèêíìóòôõúùç]/.test(cleaned);
+  if (!cleaned || (hasLowercaseLetters && cleaned !== cleaned.toUpperCase())) return cleaned;
 
   return cleaned
     .toLowerCase()
-    .replace(/\b([\p{L}])/gu, (letter) => letter.toUpperCase())
+    .replace(/(^|\s)([\p{L}])/gu, (_match, prefix, letter) => `${prefix}${letter.toUpperCase()}`)
     .replace(/\b(De|Da|Do|Das|Dos|E)\b/g, (word) => word.toLowerCase());
 }
 
@@ -363,6 +371,19 @@ function extractLocality(lines) {
   return parish || "";
 }
 
+function extractParish(lines) {
+  for (const line of lines) {
+    const match = cleanExtractedText(line).match(/freguesia\s*:\s*(?:\d+\s*[-–]\s*)?(.+?)\s*$/i);
+    if (match?.[1]) {
+      const value = toDisplayText(match[1].replace(/\s+(?=distrito\b|concelho\b)/i, ""));
+      if (value && !/^total$/i.test(value)) return value;
+    }
+  }
+
+  const parish = getValueFromLabel(lines, ["Freguesia"]);
+  return parish && !/^total$/i.test(parish) ? parish : "";
+}
+
 function isLikelyPersonName(value) {
   const normalizedValue = normalizeForExtraction(value);
   const cleaned = cleanExtractedText(value);
@@ -484,6 +505,7 @@ function parseCadernetaText(text) {
     clientName: extractClientName(lines),
     street: addPostalCodeToAddress(street, postalCode),
     locality: extractLocality(lines),
+    parish: extractParish(lines),
     propertyType: extractPropertyType(normalizedText),
     privateArea: extractArea(normalizedText, ["Área bruta privativa", "Area bruta privativa"]),
     dependentArea: extractArea(normalizedText, ["Área bruta dependente", "Area bruta dependente", "Área dependente", "Area dependente"]),
@@ -632,6 +654,229 @@ function getResultNote(valuation) {
     return `${baseNote} ${potentialNote} O intervalo final inclui a valorização aplicável aos dados escolhidos.`;
   }
   return `${baseNote} ${potentialNote}`;
+}
+
+const sirDataState = {
+  rows: [],
+  source: "",
+  loaded: false,
+  error: "",
+  lastMatch: null,
+};
+if (typeof window !== "undefined") window.sirDataState = sirDataState;
+let sirPriceManuallyEdited = false;
+
+function normaliseSirText(value) {
+  return normalizeForExtraction(value || "").replace(/[ºª]/g, "").trim();
+}
+
+function toSirNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normaliseSirRow(row) {
+  return {
+    regiao: row.regiao || "",
+    concelho: row.concelho || "",
+    freguesia: row.freguesia || "",
+    tipologia: row.tipologia || "",
+    estado: row.estado || "",
+    n: toSirNumber(row.n),
+    p5: toSirNumber(row.p5),
+    p25: toSirNumber(row.p25),
+    media: toSirNumber(row.media),
+    p75: toSirNumber(row.p75),
+    p95: toSirNumber(row.p95),
+  };
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    const next = text[index + 1];
+    if (character === '"' && quoted && next === '"') {
+      cell += '"';
+      index += 1;
+    } else if (character === '"') {
+      quoted = !quoted;
+    } else if (character === "," && !quoted) {
+      row.push(cell);
+      cell = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const headers = rows.shift()?.map((header) => header.trim()) || [];
+  return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])));
+}
+
+function parseSirPayload(payload) {
+  const rows = Array.isArray(payload) ? payload : payload?.rows;
+  return Array.isArray(rows) ? rows.map(normaliseSirRow).filter((row) => row.concelho && row.tipologia) : [];
+}
+
+function googleTableToRows(payload) {
+  const table = payload?.table;
+  if (!table?.cols || !Array.isArray(table.rows)) return [];
+  const headers = table.cols.map((column) => column.label || column.id || "");
+  return table.rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row.c?.[index]?.v ?? ""])));
+}
+
+function loadSirGoogleJsonp(url) {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined" || !document.createElement || !document.head) {
+      reject(new Error("SIR_JSONP_UNAVAILABLE"));
+      return;
+    }
+
+    const callbackName = `sirSheetCallback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const jsonpUrl = url.replace(/tqx=out%3Acsv|tqx=out:csv/i, `tqx=out:json;responseHandler:${callbackName}`);
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("SIR_JSONP_TIMEOUT"));
+    }, 12000);
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    window[callbackName] = (payload) => {
+      cleanup();
+      resolve(googleTableToRows(payload));
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("SIR_JSONP_FAILED"));
+    };
+    script.src = jsonpUrl;
+    document.head.appendChild(script);
+  });
+}
+
+async function loadSirData() {
+  if (typeof fetch !== "function") return;
+  const urls = [SIR_GOOGLE_SHEET_CSV_URL, SIR_LOCAL_DATA_URL].filter(Boolean);
+  for (const url of urls) {
+    try {
+      let payload;
+      if (url === SIR_GOOGLE_SHEET_CSV_URL) {
+        payload = await loadSirGoogleJsonp(url);
+      } else {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`SIR_HTTP_${response.status}`);
+        const contentType = response.headers.get("content-type") || "";
+        payload = contentType.includes("json") || url.endsWith(".json")
+          ? await response.json()
+          : parseCsv(await response.text());
+      }
+      const rows = parseSirPayload(payload);
+      if (!rows.length) throw new Error("SIR_EMPTY");
+      sirDataState.rows = rows;
+      sirDataState.source = url === SIR_LOCAL_DATA_URL ? "base conjunta local" : "Google Sheets";
+      sirDataState.loaded = true;
+      sirDataState.error = "";
+      updateSirPriceFromLocation();
+      render();
+      return rows;
+    } catch (error) {
+      sirDataState.error = error.message || "SIR_LOAD_FAILED";
+    }
+  }
+  sirDataState.loaded = false;
+  render();
+  return [];
+}
+
+function getSirStatsRange(row) {
+  const low = row.p25 ?? row.p5 ?? row.media ?? row.p75 ?? row.p95;
+  const high = row.p75 ?? row.p95 ?? row.media ?? row.p25 ?? row.p5;
+  if (!Number.isFinite(low) || !Number.isFinite(high)) return null;
+  return { low, high, mean: row.media, sample: row.n };
+}
+
+function getSirPriceMatch() {
+  if (!sirDataState.loaded) return null;
+  const concelho = normaliseSirText(fields.locality?.value);
+  const freguesia = normaliseSirText(fields.parish?.value);
+  if (!concelho && !freguesia) return null;
+
+  const tipologia = fields.propertyType.value === "house" ? "Moradia" : "Apartamento";
+  const estado = fields.condition.value === "new" ? "Novo" : "Usado";
+  const rows = sirDataState.rows.filter((row) => row.tipologia === tipologia);
+  const stateRows = rows.filter((row) => row.estado === estado);
+  const options = stateRows.length ? stateRows : rows.filter((row) => row.estado === "Total");
+
+  const matchRows = (candidateRows, predicate, level, label) => {
+    const match = candidateRows.find(predicate);
+    if (!match) return null;
+    const stats = getSirStatsRange(match);
+    return stats ? { ...stats, level, label, row: match } : null;
+  };
+
+  if (concelho && freguesia) {
+    const exactParish = matchRows(options, (row) => normaliseSirText(row.concelho) === concelho && normaliseSirText(row.freguesia) === freguesia, "freguesia", `${rowLabel(freguesia)} (${fields.locality.value})`);
+    if (exactParish) return exactParish;
+  }
+
+  if (concelho) {
+    const council = matchRows(options, (row) => normaliseSirText(row.concelho) === concelho && normaliseSirText(row.freguesia) === "total", "concelho", fields.locality.value.trim());
+    if (council) return council;
+  }
+
+  if (freguesia) {
+    const parish = matchRows(options, (row) => normaliseSirText(row.freguesia) === freguesia && normaliseSirText(row.freguesia) !== "total", "freguesia", fields.parish.value.trim());
+    if (parish) return parish;
+  }
+
+  return null;
+}
+
+function rowLabel(value) {
+  return value || "Freguesia";
+}
+
+function updateSirPriceFromLocation() {
+  if (!sirDataState.loaded || sirPriceManuallyEdited) return;
+  const match = getSirPriceMatch();
+  sirDataState.lastMatch = match;
+  if (match) {
+    fields.pricePerSqmLow.value = String(Math.round(match.low));
+    fields.pricePerSqmHigh.value = String(Math.round(match.high));
+  }
+  render();
+}
+
+function getSirPriceSourceLabel() {
+  if (!sirDataState.loaded) {
+    return sirDataState.error
+      ? "Não foi possível carregar a base SIR. Podes introduzir o intervalo manualmente."
+      : "Dados SIR ainda não carregados. Podes introduzir o intervalo manualmente.";
+  }
+  if (sirDataState.lastMatch) {
+    const sample = sirDataState.lastMatch.sample ? `, amostra ${Math.round(sirDataState.lastMatch.sample)}` : "";
+    return `SIR: ${sirDataState.lastMatch.level} (${sirDataState.lastMatch.label}${sample}). Intervalo baseado nos quartis 1 e 3.`;
+  }
+  return "SIR carregado, mas não foi encontrada uma correspondência para esta freguesia ou concelho.";
 }
 
 function setUploadStatus(message, type = "") {
@@ -864,6 +1109,11 @@ function applyCadernetaData(data) {
     filled.push("localidade");
   }
 
+  if (data.parish && fields.parish) {
+    fields.parish.value = data.parish;
+    filled.push("freguesia");
+  }
+
   if (data.propertyType) {
     fields.propertyType.value = data.propertyType;
     filled.push("tipo de imóvel");
@@ -893,6 +1143,8 @@ function applyCadernetaData(data) {
     filled.push("tipo de terreno");
   }
 
+  sirPriceManuallyEdited = false;
+  updateSirPriceFromLocation();
   render();
   return filled;
 }
@@ -990,6 +1242,7 @@ function getValuation() {
     clientName: fields.clientName.value.trim(),
     street: fields.street.value.trim(),
     locality: fields.locality.value.trim(),
+    parish: fields.parish?.value.trim() || "",
     propertyType,
     propertyTypeLabel: getPropertyTypeLabel(propertyType),
     condition,
@@ -1035,6 +1288,7 @@ function render() {
   updateLandReferenceState(valuation.landType);
   updatePropertyTypeState(valuation.propertyType);
   const locationParts = [valuation.street, valuation.locality].filter(Boolean);
+  if (valuation.parish) locationParts.push(valuation.parish);
   const client = valuation.clientName || "Por preencher";
   const location = locationParts.length ? locationParts.join(", ") : "Morada por preencher";
   const weightedArea = `${formatArea(valuation.weightedLowArea)} - ${formatArea(valuation.weightedHighArea)}`;
@@ -1073,6 +1327,7 @@ function render() {
   output.detailDependentArea.textContent = detailDependentArea;
   output.detailWeightedArea.textContent = detailWeightedArea;
   output.detailBaseValue.textContent = detailBaseValue;
+  if (output.sirPriceSource) output.sirPriceSource.textContent = getSirPriceSourceLabel();
 
   printOutput.client.textContent = client;
   printOutput.location.textContent = location;
@@ -1140,6 +1395,19 @@ function validateValuation() {
 
 form.addEventListener("input", render);
 form.addEventListener("change", render);
+for (const priceField of [fields.pricePerSqmLow, fields.pricePerSqmHigh]) {
+  priceField?.addEventListener("input", () => {
+    sirPriceManuallyEdited = true;
+    render();
+  });
+}
+for (const locationField of [fields.locality, fields.parish, fields.propertyType, fields.condition]) {
+  locationField?.addEventListener("change", () => {
+    if (!sirPriceManuallyEdited || sirDataState.lastMatch) sirPriceManuallyEdited = false;
+    updateSirPriceFromLocation();
+  });
+  locationField?.addEventListener("blur", updateSirPriceFromLocation);
+}
 form.addEventListener("reset", () => {
   window.setTimeout(() => {
     resetCadernetaSummary();
@@ -1166,6 +1434,7 @@ pdfButton.addEventListener("click", () => {
 });
 
 render();
+loadSirData();
 
 if (window.location.protocol === "file:") {
   setUploadStatus("Modo de abertura incorreto. Para ler PDFs, abre ‘Abrir aplicação.command’ em vez de index.html.", "error");
