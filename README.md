@@ -1,30 +1,30 @@
-# Calculadora LTV
+# Estudo Mercado
 
-Web app simples para calcular a avaliação bancária necessária na aquisição de um imóvel, com base no valor do imóvel e na percentagem de LTV.
+Calculadora simples de valor indicativo de imóveis para apresentação a clientes.
 
-## Utilização
+## Como usar
 
-Abra a aplicação no browser, introduza o valor do imóvel, indique o sinal entregue e escolha o LTV pretendido. O sinal pode ser inserido em percentagem ou em numerário. A app apresenta:
+No macOS, abre `Abrir aplicação.command`. O lançador inicia um servidor apenas no computador e abre a aplicação em `http://127.0.0.1:8765`.
 
-- avaliação bancária necessária;
-- financiamento estimado;
-- sinal considerado.
+Não abras diretamente `index.html` através de um endereço `file://`. Os navegadores bloqueiam os módulos de leitura de PDF e OCR nesse modo.
 
-## Publicação
+## Publicação online
 
-Esta app é estática e pode ser publicada diretamente com GitHub Pages.
+Este projeto é estático. Depois de enviado para o GitHub, pode ser publicado em:
 
-O script `publish-to-github.sh` actualiza o repositório sem reescrever o histórico.
+`Settings` -> `Pages` -> `Deploy from a branch` -> `main` -> `/root`
 
-## Fórmula
+O ficheiro principal é `index.html`.
 
-O financiamento pretendido corresponde ao valor do imóvel menos o sinal. A avaliação
-necessária é calculada dividindo esse financiamento pela percentagem de LTV.
+## Leitura de cadernetas
 
-## Testes
+A aplicação tenta primeiro extrair a camada de texto do PDF. Quando o documento é uma digitalização, utiliza OCR local em português através do Tesseract.js. O PDF e os dados reconhecidos permanecem no navegador e não são enviados para serviços externos.
 
-Com Node.js instalado, execute:
+O OCR pode demorar alguns segundos por página. Todos os campos encontrados devem ser confirmados antes de serem aplicados ao estudo.
 
-```sh
-node --test calculator.test.js
-```
+Dependências incluídas localmente:
+
+* PDF.js 5.6.205
+* Tesseract.js 7.0.0
+* Tesseract.js Core 7.0.0
+* Dados de idioma português do Tesseract.js 1.0.0
