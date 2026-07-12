@@ -56,7 +56,7 @@ function updateCalculator() {
   requiredValuation.textContent = formatMoney(neededValuation);
   resultContext.textContent =
     propertyValue > 0
-      ? `Para financiar ${formatMoney(loan)} com LTV de ${ltv}%.`
+      ? "Valor da avaliação bancária necessária."
       : "Introduza o valor do imóvel.";
   estimatedLoan.textContent = formatMoney(loan);
   consideredSignal.textContent = formatMoney(signalAmount);
