@@ -236,3 +236,20 @@ test("usa o INE total para moradia e faz fallback regional para apartamento", ()
   assert.equal(apartmentMatch.mean, 1021);
   assert.equal(apartmentMatch.fallback, true);
 });
+
+test("separa o preço recomendado do preço de entrada com margem de negociação", () => {
+  const app = loadApplication();
+  fillRequiredFields(app);
+  app.element("#negotiationMargin").value = "5,3";
+
+  const valuation = app.context.getValuation();
+
+  assert.equal(valuation.recommendedSaleValue, 100000);
+  assert.equal(valuation.negotiationMarginPercent, 5.3);
+  assert.equal(valuation.listingPriceValue, 106000);
+
+  app.element("#negotiationMargin").value = "0";
+  const noMarginValuation = app.context.getValuation();
+  assert.equal(noMarginValuation.negotiationMarginPercent, 0);
+  assert.equal(noMarginValuation.listingPriceValue, 100000);
+});

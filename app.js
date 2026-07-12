@@ -1,5 +1,6 @@
 const DEPENDENT_LOW_WEIGHT = 0.25;
 const DEPENDENT_HIGH_WEIGHT = 1 / 3;
+const DEFAULT_NEGOTIATION_MARGIN_PERCENT = 5.3;
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_PDF_PAGES = 20;
 const MIN_EXTRACTED_TEXT_LENGTH = 80;
@@ -81,6 +82,7 @@ const fields = {
   buildableArea: document.querySelector("#buildableArea"),
   pricePerSqmLow: document.querySelector("#pricePerSqmLow"),
   pricePerSqmHigh: document.querySelector("#pricePerSqmHigh"),
+  negotiationMargin: document.querySelector("#negotiationMargin"),
 };
 
 const output = {
@@ -90,6 +92,8 @@ const output = {
   correctSaleValue: document.querySelector("#correctSaleValue"),
   marketLimitValue: document.querySelector("#marketLimitValue"),
   recommendedSaleValue: document.querySelector("#recommendedSaleValue"),
+  listingPriceValue: document.querySelector("#listingPriceValue"),
+  pricingExplanation: document.querySelector("#pricingExplanation"),
   weightedArea: document.querySelector("#weightedArea"),
   zonePrice: document.querySelector("#zonePrice"),
   sirPriceAverage: document.querySelector("#sirPriceAverage"),
@@ -141,6 +145,7 @@ const printOutput = {
   correctSaleValue: document.querySelector("#printCorrectSaleValue"),
   marketLimitValue: document.querySelector("#printMarketLimitValue"),
   recommendedSaleValue: document.querySelector("#printRecommendedSaleValue"),
+  listingPriceValue: document.querySelector("#printListingPriceValue"),
   privateArea: document.querySelector("#printPrivateArea"),
   dependentArea: document.querySelector("#printDependentArea"),
   landArea: document.querySelector("#printLandArea"),
@@ -536,6 +541,16 @@ function formatCurrency(value) {
   return currencyFormatter.format(Math.round(value || 0));
 }
 
+function formatPercentage(value) {
+  return `${new Intl.NumberFormat("pt-PT", { maximumFractionDigits: 1 }).format(value || 0)}%`;
+}
+
+function getNegotiationMarginPercent() {
+  const rawValue = fields.negotiationMargin?.value?.toString().trim();
+  if (!rawValue) return DEFAULT_NEGOTIATION_MARGIN_PERCENT;
+  return Math.min(parseNumber(rawValue), 25);
+}
+
 function formatCurrencyRange(low, high) {
   if (Math.round(low || 0) === Math.round(high || 0)) return formatCurrency(low);
   return `${formatCurrency(low)} - ${formatCurrency(high)}`;
@@ -650,14 +665,15 @@ function getValuationNote(valuation) {
     : valuation.buildableArea
     ? `Custo por m² de construção potencial = valor do terreno dividido por ${formatArea(valuation.buildableArea)} de construção permitida.`
     : "Para calcular o custo por m² de construção potencial, indica a área bruta de construção permitida.";
+  const negotiationNote = `O preço recomendado é ${formatCurrency(valuation.recommendedSaleValue)}. O preço de entrada sugerido é ${formatCurrency(valuation.listingPriceValue)}, com margem adicional de ${formatPercentage(valuation.negotiationMarginPercent)} para negociação.`;
 
   if (valuation.condition === "renovated") {
-    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização de remodelação entre 5% e 20%.`;
+    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização de remodelação entre 5% e 20%. ${negotiationNote}`;
   }
   if (valuation.condition === "new") {
-    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização entre 5% e 10%.`;
+    return `${baseNote} ${landNote} ${potentialNote} O intervalo final inclui uma valorização entre 5% e 10%. ${negotiationNote}`;
   }
-  return `${baseNote} ${landNote} ${potentialNote}`;
+  return `${baseNote} ${landNote} ${potentialNote} ${negotiationNote}`;
 }
 
 function getResultNote(valuation) {
@@ -1436,6 +1452,8 @@ function getValuation() {
   const referenceBaseValue = privateArea * pricePerSqmReference + referenceDependentValue + referenceLandValue;
   const referenceValue = referenceBaseValue * (1 + (conditionUpliftRange.low + conditionUpliftRange.high) / 2);
   const recommendedSaleValue = roundUpToThousand(referenceValue);
+  const negotiationMarginPercent = getNegotiationMarginPercent();
+  const listingPriceValue = roundUpToThousand(recommendedSaleValue * (1 + negotiationMarginPercent / 100));
   const weightedLandLowArea = pricePerSqmLow ? landLowValue / pricePerSqmLow : 0;
   const weightedLandHighArea = pricePerSqmHigh ? landHighValue / pricePerSqmHigh : 0;
   const weightedLowArea = privateArea + dependentArea * DEPENDENT_LOW_WEIGHT + weightedLandLowArea;
@@ -1483,6 +1501,8 @@ function getValuation() {
     highValue,
     referenceValue,
     recommendedSaleValue,
+    negotiationMarginPercent,
+    listingPriceValue,
     weightedLowArea,
     weightedHighArea,
   };
@@ -1520,6 +1540,10 @@ function render() {
   output.correctSaleValue.textContent = formatCurrency(valuation.referenceValue);
   output.marketLimitValue.textContent = formatCurrency(valuation.highValue);
   output.recommendedSaleValue.textContent = formatCurrency(valuation.recommendedSaleValue);
+  if (output.listingPriceValue) output.listingPriceValue.textContent = formatCurrency(valuation.listingPriceValue);
+  if (output.pricingExplanation) {
+    output.pricingExplanation.textContent = `O preço recomendado é ${formatCurrency(valuation.recommendedSaleValue)}. O preço de entrada sugerido é ${formatCurrency(valuation.listingPriceValue)}, com margem adicional de ${formatPercentage(valuation.negotiationMarginPercent)} para negociação.`;
+  }
   output.weightedArea.textContent = weightedArea;
   output.zonePrice.textContent = zonePrice;
   if (output.sirPriceAverage) {
@@ -1544,6 +1568,7 @@ function render() {
   printOutput.correctSaleValue.textContent = formatCurrency(valuation.referenceValue);
   printOutput.marketLimitValue.textContent = formatCurrency(valuation.highValue);
   printOutput.recommendedSaleValue.textContent = formatCurrency(valuation.recommendedSaleValue);
+  if (printOutput.listingPriceValue) printOutput.listingPriceValue.textContent = formatCurrency(valuation.listingPriceValue);
   printOutput.privateArea.textContent = formatArea(valuation.privateArea);
   printOutput.dependentArea.textContent = formatArea(valuation.dependentArea);
   printOutput.landArea.textContent = formatArea(valuation.landArea);

@@ -124,6 +124,14 @@
               </div>
             </div>
           </div>
+          <div class="field-group negotiation-field">
+            <label for="negotiationMargin">Margem adicional para negociação</label>
+            <div class="input-unit">
+              <input id="negotiationMargin" name="negotiationMargin" type="text" inputmode="decimal" value="5,3" placeholder="5,3" />
+              <span>%</span>
+            </div>
+            <small class="field-help">Valor usado apenas para sugerir o preço de entrada. O preço recomendado mantém-se baseado no estudo de mercado.</small>
+          </div>
           <p class="sir-price-source" id="sirPriceSource">A carregar dados SIR...</p>
           <p class="sir-price-source ine-price-source" id="inePriceSource">A carregar referência INE...</p>
 
@@ -196,6 +204,12 @@
           <div class="recommended-sale">
             <span>Preço de venda recomendado</span>
             <strong id="recommendedSaleValue">0 €</strong>
+          </div>
+
+          <div class="listing-price">
+            <span>Preço de entrada sugerido</span>
+            <strong id="listingPriceValue">0 €</strong>
+            <small id="pricingExplanation">Inclui margem de negociação para apresentação ao proprietário.</small>
           </div>
 
           <div class="metric-grid">
@@ -314,6 +328,11 @@
           <div class="print-recommended-sale">
             <span>Preço de venda recomendado</span>
             <strong id="printRecommendedSaleValue">0 €</strong>
+          </div>
+
+          <div class="print-listing-price">
+            <span>Preço de entrada sugerido</span>
+            <strong id="printListingPriceValue">0 €</strong>
           </div>
 
           <section class="print-section">
