@@ -3,7 +3,8 @@ set -euo pipefail
 
 REPO_NAME="calculadora-avaliacao"
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PUBLISH_DIR="/private/tmp/${REPO_NAME}-publish"
+PUBLISH_DIR="$(mktemp -d "/private/tmp/${REPO_NAME}-publish.XXXXXX")"
+trap 'rm -rf "$PUBLISH_DIR"' EXIT
 
 command -v gh >/dev/null || {
   echo "GitHub CLI nao encontrado. Instale o gh e volte a executar."
@@ -20,27 +21,30 @@ OWNER="$(gh api user --jq .login)"
 REPO_FULL_NAME="${OWNER}/${REPO_NAME}"
 REPO_URL="https://github.com/${REPO_FULL_NAME}.git"
 
-rm -rf "$PUBLISH_DIR"
-mkdir -p "$PUBLISH_DIR"
+if gh repo view "$REPO_FULL_NAME" >/dev/null 2>&1; then
+  git clone "$REPO_URL" "$PUBLISH_DIR"
+else
+  mkdir -p "$PUBLISH_DIR"
+  cd "$PUBLISH_DIR"
+  git init -b main
+  gh repo create "$REPO_FULL_NAME" --public --source=. --remote=origin
+fi
 
-rsync -a \
+rsync -a --delete \
   --exclude ".git" \
   --exclude ".DS_Store" \
   --exclude "calculadora_avaliacao_webapp.zip" \
   "$SOURCE_DIR/" "$PUBLISH_DIR/"
 
 cd "$PUBLISH_DIR"
-git init -b main
-git add .
-git commit -m "Initial web app"
+git add --all
 
-if gh repo view "$REPO_FULL_NAME" >/dev/null 2>&1; then
-  git remote add origin "$REPO_URL"
+if git diff --cached --quiet; then
+  echo "Sem alterações para publicar."
 else
-  gh repo create "$REPO_FULL_NAME" --public --source=. --remote=origin
+  git commit -m "Update web app"
+  git push -u origin main
 fi
-
-git push -u origin main --force
 
 gh api "repos/${REPO_FULL_NAME}/pages" \
   -X POST \

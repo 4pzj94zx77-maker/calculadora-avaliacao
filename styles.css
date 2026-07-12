@@ -132,6 +132,17 @@ input {
   border: 0;
 }
 
+.field-error {
+  min-height: 1.2em;
+  color: #b00020;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+input[aria-invalid="true"] {
+  color: #b00020;
+}
+
 .money-input {
   min-height: 66px;
   display: grid;

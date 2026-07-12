@@ -8,23 +8,15 @@ const signalValueInput = document.querySelector("#signalValue");
 const signalModeInputs = Array.from(document.querySelectorAll("input[name='signalMode']"));
 const signalSuffix = document.querySelector("#signalSuffix");
 const resetButton = document.querySelector("#resetButton");
+const calculatorForm = document.querySelector("#calculatorForm");
+const propertyValueError = document.querySelector("#propertyValueError");
+const signalValueError = document.querySelector("#signalValueError");
 
 const formatter = new Intl.NumberFormat("pt-PT", {
   style: "currency",
   currency: "EUR",
   maximumFractionDigits: 0,
 });
-
-function parseMoney(value) {
-  const normalized = value
-    .replace(/\s/g, "")
-    .replace(/[^\d,.-]/g, "")
-    .replace(/\.(?=\d{3}(\D|$))/g, "")
-    .replace(",", ".");
-
-  const amount = Number.parseFloat(normalized);
-  return Number.isFinite(amount) ? Math.max(amount, 0) : 0;
-}
 
 function formatMoney(value) {
   return formatter.format(Math.round(value)).replace(/\u00a0/g, " ");
@@ -40,25 +32,26 @@ function getSignalMode() {
   return selected ? selected.value : "percent";
 }
 
-function getSignalAmount(propertyValue) {
-  const rawSignal = parseMoney(signalValueInput.value);
-  const signalMode = getSignalMode();
-
-  if (signalMode === "percent") {
-    const percentage = Math.min(rawSignal, 100);
-    return propertyValue * (percentage / 100);
-  }
-
-  return Math.min(rawSignal, propertyValue);
+function setValidation(input, errorElement, result, message) {
+  input.setAttribute("aria-invalid", String(!result.valid));
+  errorElement.textContent = result.valid ? "" : message;
 }
 
 function updateCalculator() {
-  const propertyValue = parseMoney(propertyValueInput.value);
-  const signalAmount = getSignalAmount(propertyValue);
+  const propertyResult = Calculator.parsePortugueseNumber(propertyValueInput.value);
+  const signalResult = Calculator.parsePortugueseNumber(signalValueInput.value);
+  setValidation(propertyValueInput, propertyValueError, propertyResult, "Introduz um valor válido, por exemplo 250.000.");
+  setValidation(signalValueInput, signalValueError, signalResult, "Introduz um valor válido, por exemplo 10 ou 25.000.");
+
+  const propertyValue = propertyResult.valid ? propertyResult.value : 0;
+  const signalValue = signalResult.valid ? signalResult.value : 0;
   const ltv = getSelectedLtv();
-  const ltvRate = ltv / 100;
-  const loan = Math.max(propertyValue - signalAmount, 0);
-  const neededValuation = ltvRate === 0 ? 0 : loan / ltvRate;
+  const { signalAmount, loan, neededValuation } = Calculator.calculate(
+    propertyValue,
+    signalValue,
+    getSignalMode(),
+    ltv,
+  );
 
   requiredValuation.textContent = formatMoney(neededValuation);
   resultContext.textContent =
@@ -70,7 +63,8 @@ function updateCalculator() {
 }
 
 function formatInputValue() {
-  const propertyValue = parseMoney(propertyValueInput.value);
+  const result = Calculator.parsePortugueseNumber(propertyValueInput.value);
+  const propertyValue = result.valid ? result.value : 0;
 
   if (propertyValue > 0) {
     propertyValueInput.value = new Intl.NumberFormat("pt-PT", {
@@ -98,9 +92,11 @@ propertyValueInput.addEventListener("blur", formatInputValue);
 signalValueInput.value = "";
 signalValueInput.addEventListener("input", updateCalculator);
 resetButton.addEventListener("click", resetCalculator);
+calculatorForm.addEventListener("submit", (event) => event.preventDefault());
 ltvInputs.forEach((input) => input.addEventListener("change", updateCalculator));
 signalModeInputs.forEach((input) =>
   input.addEventListener("change", () => {
+    signalValueInput.value = "";
     signalSuffix.textContent = getSignalMode() === "percent" ? "%" : "€";
     updateCalculator();
   }),
@@ -108,7 +104,9 @@ signalModeInputs.forEach((input) =>
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
+    navigator.serviceWorker.register("sw.js").catch((error) => {
+      console.error("Não foi possível activar o funcionamento offline.", error);
+    });
   });
 }
 
