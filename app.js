@@ -82,6 +82,7 @@ const output = {
   recommendedSaleValue: document.querySelector("#recommendedSaleValue"),
   weightedArea: document.querySelector("#weightedArea"),
   zonePrice: document.querySelector("#zonePrice"),
+  sirPriceAverage: document.querySelector("#sirPriceAverage"),
   potentialCost: document.querySelector("#potentialCost"),
   builtCost: document.querySelector("#builtCost"),
   privateValue: document.querySelector("#privateValue"),
@@ -133,6 +134,7 @@ const printOutput = {
   dependentArea: document.querySelector("#printDependentArea"),
   landArea: document.querySelector("#printLandArea"),
   zonePrice: document.querySelector("#printZonePrice"),
+  sirPriceAverage: document.querySelector("#printSirPriceAverage"),
   condition: document.querySelector("#printCondition"),
   propertyType: document.querySelector("#printPropertyType"),
   landType: document.querySelector("#printLandType"),
@@ -644,6 +646,9 @@ function getValuationNote(valuation) {
 
 function getResultNote(valuation) {
   const baseNote = "Estimativa indicativa: área dependente calculada a 25% da área bruta privativa para efeitos de ponderação.";
+  const sirNote = valuation.sirPriceMean
+    ? `O preço correto usa a média SIR de ${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²; o intervalo apresentado usa P25–P75.`
+    : "Sem média SIR disponível; o valor central usa o ponto médio do intervalo introduzido.";
   const potentialNote = !valuation.landType
     ? "Sem terreno associado ao cálculo."
     : valuation.buildableArea
@@ -653,7 +658,7 @@ function getResultNote(valuation) {
   if (valuation.condition === "new" || valuation.condition === "renovated") {
     return `${baseNote} ${potentialNote} O intervalo final inclui a valorização aplicável aos dados escolhidos.`;
   }
-  return `${baseNote} ${potentialNote}`;
+  return `${baseNote} ${sirNote} ${potentialNote}`;
 }
 
 const sirDataState = {
@@ -671,6 +676,7 @@ function normaliseSirText(value) {
 }
 
 function toSirNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
 }
@@ -874,7 +880,10 @@ function getSirPriceSourceLabel() {
   }
   if (sirDataState.lastMatch) {
     const sample = sirDataState.lastMatch.sample ? `, amostra ${Math.round(sirDataState.lastMatch.sample)}` : "";
-    return `SIR: ${sirDataState.lastMatch.level} (${sirDataState.lastMatch.label}${sample}). Intervalo baseado nos quartis 1 e 3.`;
+    const mean = Number.isFinite(sirDataState.lastMatch.mean)
+      ? ` Média: ${formatCurrency(sirDataState.lastMatch.mean).replace(/\s?€/g, "")} €/m².`
+      : "";
+    return `SIR: ${sirDataState.lastMatch.level} (${sirDataState.lastMatch.label}${sample}).${mean} Intervalo apresentado: P25–P75.`;
   }
   return "SIR carregado, mas não foi encontrada uma correspondência para esta freguesia ou concelho.";
 }
@@ -1210,7 +1219,8 @@ function getValuation() {
   const priceRange = normalizePriceRange(fields.pricePerSqmLow.value, fields.pricePerSqmHigh.value);
   const pricePerSqmLow = priceRange.low;
   const pricePerSqmHigh = priceRange.high;
-  const pricePerSqmReference = (pricePerSqmLow + pricePerSqmHigh) / 2;
+  const sirPriceMean = Number.isFinite(sirDataState.lastMatch?.mean) ? sirDataState.lastMatch.mean : 0;
+  const pricePerSqmReference = sirPriceMean || (pricePerSqmLow + pricePerSqmHigh) / 2;
 
   const privateLowValue = privateArea * pricePerSqmLow;
   const privateHighValue = privateArea * pricePerSqmHigh;
@@ -1231,7 +1241,10 @@ function getValuation() {
   const conditionUpliftHigh = baseHighValue * conditionUpliftRange.high;
   const lowValue = baseLowValue + conditionUpliftLow;
   const highValue = baseHighValue + conditionUpliftHigh;
-  const referenceValue = (lowValue + highValue) / 2;
+  const referenceDependentValue = dependentArea * pricePerSqmReference * DEPENDENT_LOW_WEIGHT;
+  const referenceLandValue = landCalculationArea * ((selectedLandReference.low + selectedLandReference.high) / 2);
+  const referenceBaseValue = privateArea * pricePerSqmReference + referenceDependentValue + referenceLandValue;
+  const referenceValue = referenceBaseValue * (1 + (conditionUpliftRange.low + conditionUpliftRange.high) / 2);
   const recommendedSaleValue = roundUpToThousand(referenceValue);
   const weightedLandLowArea = pricePerSqmLow ? landLowValue / pricePerSqmLow : 0;
   const weightedLandHighArea = pricePerSqmHigh ? landHighValue / pricePerSqmHigh : 0;
@@ -1265,6 +1278,7 @@ function getValuation() {
     pricePerSqmLow,
     pricePerSqmHigh,
     pricePerSqmReference,
+    sirPriceMean,
     privateLowValue,
     privateHighValue,
     privateValue,
@@ -1317,6 +1331,9 @@ function render() {
   output.recommendedSaleValue.textContent = formatCurrency(valuation.recommendedSaleValue);
   output.weightedArea.textContent = weightedArea;
   output.zonePrice.textContent = zonePrice;
+  if (output.sirPriceAverage) {
+    output.sirPriceAverage.textContent = valuation.sirPriceMean ? `${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²` : "Sem média SIR";
+  }
   output.potentialCost.textContent = potentialCost;
   output.builtCost.textContent = builtCost;
   output.privateValue.textContent = formatCurrencyRange(valuation.privateLowValue, valuation.privateHighValue);
@@ -1339,6 +1356,9 @@ function render() {
   printOutput.dependentArea.textContent = formatArea(valuation.dependentArea);
   printOutput.landArea.textContent = formatArea(valuation.landArea);
   printOutput.zonePrice.textContent = zonePrice;
+  if (printOutput.sirPriceAverage) {
+    printOutput.sirPriceAverage.textContent = valuation.sirPriceMean ? `${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²` : "Sem média SIR";
+  }
   printOutput.condition.textContent = valuation.conditionLabel;
   printOutput.propertyType.textContent = valuation.propertyTypeLabel;
   printOutput.landType.textContent = valuation.landTypeLabel;

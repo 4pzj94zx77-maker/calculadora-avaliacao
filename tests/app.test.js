@@ -204,3 +204,11 @@ test("usa primeiro a freguesia e só depois o concelho para o preço SIR", () =>
   assert.equal(match.low, 1800);
   assert.equal(match.high, 2200);
 });
+
+test("não transforma percentis SIR vazios em zero", () => {
+  const app = loadApplication();
+
+  assert.equal(app.context.toSirNumber(""), null);
+  assert.equal(app.context.toSirNumber("2034"), 2034);
+  assert.equal(app.context.toSirNumber(null), null);
+});
