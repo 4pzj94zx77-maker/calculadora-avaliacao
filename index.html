@@ -109,7 +109,7 @@
           </div>
           <div class="split-fields">
             <div class="field-group">
-              <label for="pricePerSqmLow">Preço m² mínimo</label>
+              <label for="pricePerSqmLow">Preço m² inferior (P25)</label>
               <div class="input-unit">
                 <input id="pricePerSqmLow" name="pricePerSqmLow" type="text" inputmode="decimal" required placeholder="Ex.: 2200" />
                 <span>€</span>
@@ -117,7 +117,7 @@
             </div>
 
             <div class="field-group">
-              <label for="pricePerSqmHigh">Preço m² máximo</label>
+              <label for="pricePerSqmHigh">Preço m² superior (P75)</label>
               <div class="input-unit">
                 <input id="pricePerSqmHigh" name="pricePerSqmHigh" type="text" inputmode="decimal" required placeholder="Ex.: 2400" />
                 <span>€</span>
@@ -205,6 +205,10 @@
             <div>
               <span>Preço m² da zona</span>
               <strong id="zonePrice">0 €/m²</strong>
+            </div>
+            <div>
+              <span>Média SIR da zona</span>
+              <strong id="sirPriceAverage">Sem média SIR</strong>
             </div>
             <div>
               <span>Custo construção potencial</span>
@@ -329,6 +333,10 @@
               <div>
                 <span>Preço m² da zona</span>
                 <strong id="printZonePrice">0 €/m²</strong>
+              </div>
+              <div>
+                <span>Média SIR da zona</span>
+                <strong id="printSirPriceAverage">Sem média SIR</strong>
               </div>
               <div>
                 <span>Estado do imóvel</span>
