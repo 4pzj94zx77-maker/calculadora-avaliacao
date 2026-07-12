@@ -212,3 +212,27 @@ test("não transforma percentis SIR vazios em zero", () => {
   assert.equal(app.context.toSirNumber("2034"), 2034);
   assert.equal(app.context.toSirNumber(null), null);
 });
+
+test("usa o INE total para moradia e faz fallback regional para apartamento", () => {
+  const app = loadApplication();
+  app.element("#locality").value = "Santarém";
+  app.element("#propertyType").value = "house";
+  app.context.window.ineDataState.loaded = true;
+  app.context.window.ineDataState.totalRows = [
+    { location: "Santarém", category: "Total", geocode: "1D31416", value: 1391, period: "4.º Trimestre de 2025" },
+  ];
+  app.context.window.ineDataState.apartmentRows = [
+    { location: "Médio Tejo", category: "Apartamentos", geocode: "16I", value: 1021, period: "4.º Trimestre de 2023" },
+  ];
+
+  const houseMatch = app.context.getInePriceMatch();
+  assert.equal(houseMatch.level, "localização");
+  assert.equal(houseMatch.mean, 1391);
+
+  app.element("#propertyType").value = "apartment";
+  const apartmentMatch = app.context.getInePriceMatch();
+  assert.equal(apartmentMatch.level, "região");
+  assert.equal(apartmentMatch.label, "Médio Tejo");
+  assert.equal(apartmentMatch.mean, 1021);
+  assert.equal(apartmentMatch.fallback, true);
+});
