@@ -179,9 +179,28 @@ test("extrai os campos do formato OCR da caderneta fornecida", () => {
   ].join("\n"));
 
   assert.equal(data.locality, "Santarem");
+  assert.equal(data.parish, "União de Freguesias");
   assert.match(data.street, /Praceta João Caetano Brás.*Andar\/Divisão: 6ºAG/i);
   assert.equal(data.privateArea, 184.36);
   assert.equal(data.dependentArea, 3.1);
   assert.equal(data.propertyType, "apartment");
   assert.equal(data.clientName, "Ana Silva e Bruno Costa");
+});
+
+test("usa primeiro a freguesia e só depois o concelho para o preço SIR", () => {
+  const app = loadApplication();
+  app.element("#locality").value = "Santarém";
+  app.element("#parish").value = "Alvalade";
+  app.element("#propertyType").value = "apartment";
+  app.element("#condition").value = "used";
+  app.context.window.sirDataState.loaded = true;
+  app.context.window.sirDataState.rows = [
+    { concelho: "Santarém", freguesia: "Total", tipologia: "Apartamento", estado: "Usado", p25: 1200, media: 1400, p75: 1600, n: 50 },
+    { concelho: "Santarém", freguesia: "Alvalade", tipologia: "Apartamento", estado: "Usado", p25: 1800, media: 2000, p75: 2200, n: 8 },
+  ];
+
+  const match = app.context.getSirPriceMatch();
+  assert.equal(match.level, "freguesia");
+  assert.equal(match.low, 1800);
+  assert.equal(match.high, 2200);
 });
