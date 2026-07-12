@@ -1,9 +1,10 @@
-const CACHE_NAME = "remax-avaliacao-v6";
+const CACHE_NAME = "remax-avaliacao-v7";
 const ASSETS = [
   "./",
   "index.html",
   "styles.css",
   "app.js",
+  "calculator.js",
   "manifest.json",
   "assets/logo-horizontal.png",
   "assets/logo-vertical.png",
@@ -34,9 +35,28 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put("./", copy));
+          return response;
+        })
+        .catch(() => caches.match("./")),
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request);
+      const updated = fetch(event.request).then((response) => {
+        if (response.ok && new URL(event.request.url).origin === self.location.origin) {
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+        }
+        return response;
+      });
+      return cached || updated;
     }),
   );
 });

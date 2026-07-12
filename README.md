@@ -13,3 +13,18 @@ Abra a aplicação no browser, introduza o valor do imóvel, indique o sinal ent
 ## Publicação
 
 Esta app é estática e pode ser publicada diretamente com GitHub Pages.
+
+O script `publish-to-github.sh` actualiza o repositório sem reescrever o histórico.
+
+## Fórmula
+
+O financiamento pretendido corresponde ao valor do imóvel menos o sinal. A avaliação
+necessária é calculada dividindo esse financiamento pela percentagem de LTV.
+
+## Testes
+
+Com Node.js instalado, execute:
+
+```sh
+node --test calculator.test.js
+```

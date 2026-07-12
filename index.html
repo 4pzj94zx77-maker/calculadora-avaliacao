@@ -45,9 +45,11 @@
                 inputmode="decimal"
                 autocomplete="off"
                 placeholder="0"
+                aria-describedby="propertyValueError"
               />
               <span aria-hidden="true">€</span>
             </span>
+            <span class="field-error" id="propertyValueError" role="alert"></span>
           </label>
 
           <fieldset class="signal-field">
@@ -72,9 +74,11 @@
                   inputmode="decimal"
                   autocomplete="off"
                   placeholder="0"
+                  aria-describedby="signalValueError"
                 />
                 <span id="signalSuffix" aria-hidden="true">%</span>
               </span>
+              <span class="field-error" id="signalValueError" role="alert"></span>
             </label>
           </fieldset>
 
@@ -129,6 +133,7 @@
       </section>
     </main>
 
+    <script src="calculator.js" defer></script>
     <script src="app.js" defer></script>
   </body>
 </html>
