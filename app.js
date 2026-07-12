@@ -298,11 +298,14 @@ function composeAddress(parts) {
 }
 
 function extractAddress(lines) {
-  const addressLabels = ["Av./Rua/Praça", "Av./Rua/Praca", "Localização do prédio", "Localizacao do predio", "Localização da fracção", "Localizacao da fraccao", "Localização", "Localizacao", "Morada", "Sito em"];
-  const labelIndex = lines.findIndex((line) => {
+  const fractionLabels = ["Localização da fracção", "Localizacao da fraccao"];
+  const generalLabels = ["Av./Rua/Praça", "Av./Rua/Praca", "Localização do prédio", "Localizacao do predio", "Localização", "Localizacao", "Morada", "Sito em"];
+  const findLabelIndex = (labels) => lines.findIndex((line) => {
     const normalizedLine = normalizeForExtraction(line);
-    return addressLabels.some((label) => normalizedLine.includes(normalizeForExtraction(label)));
+    return labels.some((label) => normalizedLine.includes(normalizeForExtraction(label)));
   });
+  const fractionLabelIndex = findLabelIndex(fractionLabels);
+  const labelIndex = fractionLabelIndex >= 0 ? fractionLabelIndex : findLabelIndex(generalLabels);
 
   if (labelIndex >= 0) {
     const parts = [];
@@ -312,19 +315,26 @@ function extractAddress(lines) {
       parts.push(inlineAddress);
     }
 
-    for (let index = labelIndex + 1; index < Math.min(labelIndex + 7, lines.length); index += 1) {
+    for (let index = labelIndex + 1; index < Math.min(labelIndex + 8, lines.length); index += 1) {
       const line = cleanExtractedText(lines[index]);
-      if (!line || isExtractionLabel(line)) break;
+      const normalizedLine = normalizeForExtraction(line);
+      if (!line || isExtractionLabel(line) || /^(elementos|fracao autonoma|fraccao autonoma|titulares)\b/.test(normalizedLine)) break;
 
-      if (!parts.length || looksLikeAddressLine(line)) {
-        parts.push(line);
+      const addressLine = stripKnownAddressLabel(line);
+      if (!parts.length && addressLine) {
+        parts.push(addressLine);
         continue;
       }
 
       break;
     }
 
-    if (parts.length) return composeAddress(parts);
+    if (parts.length) {
+      const unitLine = lines.find((line) => /andar\s*\/\s*divis[aã]o\s*:/i.test(line));
+      const unitMatch = unitLine?.match(/andar\s*\/\s*divis[aã]o\s*:\s*(.+)$/i);
+      if (unitMatch?.[1]) parts.push(`Andar/Divisão: ${cleanExtractedText(unitMatch[1])}`);
+      return composeAddress(parts);
+    }
   }
 
   const streetPrefixes = /^(rua|avenida|av\.|estrada|travessa|largo|praceta|praça|praca|beco|caminho|quinta)\b/i;
@@ -377,6 +387,12 @@ function cleanClientName(value) {
   );
 }
 
+function getFirstAndLastName(value) {
+  const parts = cleanClientName(value).split(/\s+/).filter(Boolean);
+  if (parts.length <= 2) return parts.join(" ");
+  return `${parts[0]} ${parts[parts.length - 1]}`;
+}
+
 function extractClientName(lines) {
   const ownerSectionIndex = lines.findIndex((line) => {
     const normalizedLine = normalizeForExtraction(line);
@@ -389,15 +405,21 @@ function extractClientName(lines) {
     );
   });
   const searchStart = ownerSectionIndex >= 0 ? ownerSectionIndex : 0;
-  const searchEnd = ownerSectionIndex >= 0 ? Math.min(ownerSectionIndex + 18, lines.length) : lines.length;
+  const sectionEndIndex = ownerSectionIndex >= 0
+    ? lines.findIndex((line, index) => index > ownerSectionIndex && /^(isencoes|isenções|observacoes|observações)\b/i.test(normalizeForExtraction(line)))
+    : -1;
+  const searchEnd = sectionEndIndex > ownerSectionIndex ? sectionEndIndex : ownerSectionIndex >= 0 ? Math.min(ownerSectionIndex + 60, lines.length) : lines.length;
   const labelPattern = /(nome do titular|nome|titular|proprietario|proprietário|sujeito passivo)/i;
+  const directNames = [];
 
   for (let index = searchStart; index < searchEnd; index += 1) {
     const directMatch = cleanExtractedText(lines[index]).match(/\bnome\s*:\s*(.+?)(?=\s+morada\s*:|$)/i);
     if (!directMatch?.[1]) continue;
     const directCandidate = cleanClientName(directMatch[1]);
-    if (isLikelyPersonName(directCandidate)) return directCandidate;
+    if (isLikelyPersonName(directCandidate) && !directNames.includes(directCandidate)) directNames.push(directCandidate);
   }
+
+  if (directNames.length) return directNames.slice(0, 2).map(getFirstAndLastName).join(" e ");
 
   for (let index = searchStart; index < searchEnd; index += 1) {
     const line = cleanExtractedText(lines[index]);
@@ -405,11 +427,11 @@ function extractClientName(lines) {
     if (!labelPattern.test(line) && !labelPattern.test(normalizedLine)) continue;
 
     const inlineCandidate = cleanClientName(line.replace(labelPattern, "").replace(/^\s*[:;\-–]\s*/, ""));
-    if (isLikelyPersonName(inlineCandidate)) return inlineCandidate;
+    if (isLikelyPersonName(inlineCandidate)) return getFirstAndLastName(inlineCandidate);
 
     for (let nextIndex = index + 1; nextIndex < Math.min(index + 6, searchEnd); nextIndex += 1) {
       const candidate = cleanClientName(lines[nextIndex]);
-      if (isLikelyPersonName(candidate)) return candidate;
+      if (isLikelyPersonName(candidate)) return getFirstAndLastName(candidate);
     }
   }
 
@@ -565,6 +587,10 @@ function updatePropertyTypeState(propertyType) {
   fields.landArea.disabled = isApartment;
 
   if (isApartment) {
+    fields.landArea.value = "";
+    fields.landType.value = "";
+    fields.landReference.value = "";
+    fields.buildableArea.value = "";
     fields.landReference.disabled = true;
     fields.buildableArea.disabled = true;
   }

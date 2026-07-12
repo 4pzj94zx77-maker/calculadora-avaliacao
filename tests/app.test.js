@@ -102,7 +102,7 @@ test("uma moradia conserva e inclui o terreno no cálculo", () => {
   assert.equal(valuation.landHighValue, 4000);
 });
 
-test("um apartamento ignora o terreno sem apagar os dados", () => {
+test("um apartamento deixa os campos de terreno vazios e ignora o terreno", () => {
   const app = loadApplication();
   fillRequiredFields(app);
   app.element("#propertyType").value = "apartment";
@@ -114,7 +114,8 @@ test("um apartamento ignora o terreno sem apagar os dados", () => {
   const valuation = app.context.getValuation();
 
   assert.equal(app.element("#landType").disabled, true);
-  assert.equal(app.element("#landType").value, "urban");
+  assert.equal(app.element("#landType").value, "");
+  assert.equal(app.element("#landArea").value, "");
   assert.equal(valuation.landLowValue, 0);
   assert.equal(valuation.landHighValue, 0);
 });
@@ -168,16 +169,19 @@ test("extrai os campos do formato OCR da caderneta fornecida", () => {
     "DISTRITO: 14 - SANTAREM CONCELHO: 16 - SANTAREM FREGUESIA: 33 - UNIÃO DE FREGUESIAS",
     "LOCALIZAÇÃO DA FRACÇÃO",
     "Av./Rua/Praça: Praceta João Caetano Brás, nº 1, 2, 3, 4, 5, 6 Nº: 3 Lugar: Santarém Código Postal: 2005-161",
+    "Andar/Divisão: 6ºAG",
     "FRACÇÃO AUTÓNOMA: AG",
     "Área bruta privativa: 184,3600 m² Área bruta dependente: 3,1000 m²",
     "TITULARES",
     "Identificação fiscal: 000000000 Nome: ANA SILVA",
+    "Morada: Rua de Exemplo, 1",
+    "Identificação fiscal: 111111111 Nome: BRUNO MIGUEL COSTA",
   ].join("\n"));
 
   assert.equal(data.locality, "Santarem");
-  assert.match(data.street, /Praceta João Caetano Brás/i);
+  assert.match(data.street, /Praceta João Caetano Brás.*Andar\/Divisão: 6ºAG/i);
   assert.equal(data.privateArea, 184.36);
   assert.equal(data.dependentArea, 3.1);
   assert.equal(data.propertyType, "apartment");
-  assert.equal(data.clientName, "Ana Silva");
+  assert.equal(data.clientName, "Ana Silva e Bruno Costa");
 });
