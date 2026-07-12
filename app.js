@@ -9,6 +9,16 @@ const SIR_LOCAL_DATA_URL = "./data/sir-mercado.json";
 // Preenche este URL apenas quando a folha tiver uma publicação CSV autorizada.
 // A aplicação mantém a cópia local como fallback para não falhar sem rede.
 const SIR_GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1CixDatu7TlLpKJ0ItZuutb8VWIbg5eHivTkk1h4D1WI/gviz/tq?tqx=out:csv&sheet=Dados%20SIR";
+const INE_GOOGLE_SHEET_ID = "1qorEWqQfD_aNHs-to7z5CJZ2_U2ERNP4juOgmOItnV0";
+const INE_GOOGLE_SHEET_TOTAL_URL = `https://docs.google.com/spreadsheets/d/${INE_GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INE_Total`;
+const INE_GOOGLE_SHEET_APARTMENTS_URL = `https://docs.google.com/spreadsheets/d/${INE_GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet=INE_Apartamentos`;
+
+const INE_NUTS_2024_TO_2013 = {
+  "1a": ["Área Metropolitana de Lisboa", "170", "17"],
+  "1c": ["Alentejo", "18"],
+  "19": ["Centro", "16"],
+  "1d3": ["Médio Tejo", "16i"],
+};
 
 const LAND_REFERENCES = {
   none: {
@@ -94,6 +104,7 @@ const output = {
   detailWeightedArea: document.querySelector("#detailWeightedArea"),
   detailBaseValue: document.querySelector("#detailBaseValue"),
   sirPriceSource: document.querySelector("#sirPriceSource"),
+  inePriceSource: document.querySelector("#inePriceSource"),
 };
 
 const pdfButton = document.querySelector("#pdfButton");
@@ -473,6 +484,14 @@ function addPostalCodeToAddress(address, postalCode) {
 }
 
 function extractPropertyType(normalizedText) {
+  const isHouse =
+    normalizedText.includes("moradia") ||
+    normalizedText.includes("moradias") ||
+    normalizedText.includes("habitacao unifamiliar") ||
+    normalizedText.includes("habitacao uni familiar");
+
+  if (isHouse) return "house";
+
   if (
     normalizedText.includes("fracao autonoma") ||
     normalizedText.includes("fraccao autonoma") ||
@@ -483,9 +502,6 @@ function extractPropertyType(normalizedText) {
   }
 
   if (
-    normalizedText.includes("moradia") ||
-    normalizedText.includes("habitacao unifamiliar") ||
-    normalizedText.includes("habitação unifamiliar") ||
     normalizedText.includes("predio em propriedade total")
   ) {
     return "house";
@@ -648,6 +664,8 @@ function getResultNote(valuation) {
   const baseNote = "Estimativa indicativa: área dependente calculada a 25% da área bruta privativa para efeitos de ponderação.";
   const sirNote = valuation.sirPriceMean
     ? `O preço correto usa a média SIR de ${formatCurrency(valuation.sirPriceMean).replace(/\s?€/g, "")} €/m²; o intervalo apresentado usa P25–P75.`
+    : valuation.inePriceMean
+    ? `Sem correspondência SIR; foi usada a mediana INE de ${formatCurrency(valuation.inePriceMean).replace(/\s?€/g, "")} €/m² como referência única.`
     : "Sem média SIR disponível; o valor central usa o ponto médio do intervalo introduzido.";
   const potentialNote = !valuation.landType
     ? "Sem terreno associado ao cálculo."
@@ -779,6 +797,168 @@ function loadSirGoogleJsonp(url) {
   });
 }
 
+function loadGoogleSheetJsonp(url, prefix = "sheet") {
+  return new Promise((resolve, reject) => {
+    if (typeof document === "undefined" || !document.createElement || !document.head) {
+      reject(new Error("GOOGLE_SHEET_JSONP_UNAVAILABLE"));
+      return;
+    }
+
+    const callbackName = `${prefix}Callback_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const jsonpUrl = url.replace(/tqx=out%3Acsv|tqx=out:csv/i, `tqx=out:json;responseHandler:${callbackName}`);
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("GOOGLE_SHEET_JSONP_TIMEOUT"));
+    }, 12000);
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      delete window[callbackName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    };
+
+    window[callbackName] = (payload) => {
+      cleanup();
+      resolve(googleTableToRows(payload));
+    };
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("GOOGLE_SHEET_JSONP_FAILED"));
+    };
+    script.src = jsonpUrl;
+    document.head.appendChild(script);
+  });
+}
+
+const ineDataState = {
+  totalRows: [],
+  apartmentRows: [],
+  source: "",
+  loaded: false,
+  error: "",
+  lastMatch: null,
+};
+if (typeof window !== "undefined") window.ineDataState = ineDataState;
+
+function toIneNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "" || String(value).trim() === "-") return null;
+  const number = Number(String(value).replace(/\s/g, "").replace(",", "."));
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function normaliseIneRow(row) {
+  return {
+    period: row["Período de referência"] || "",
+    geocode: String(row["Código geográfico"] || ""),
+    location: row["Localização geográfica"] || "",
+    categoryCode: row["Código categoria"] || "",
+    category: row["Categoria"] || "",
+    value: toIneNumber(row["Valor mediano €/m²"]),
+    indicator: row["Código indicador"] || "",
+    updated: row["Última atualização"] || "",
+    extracted: row["Data de extração"] || "",
+    sourceUrl: row["Fonte API"] || "",
+  };
+}
+
+function parseInePayload(payload) {
+  return Array.isArray(payload)
+    ? payload.map(normaliseIneRow).filter((row) => row.location && Number.isFinite(row.value))
+    : [];
+}
+
+async function loadIneData() {
+  const sources = [
+    [INE_GOOGLE_SHEET_TOTAL_URL, "total"],
+    [INE_GOOGLE_SHEET_APARTMENTS_URL, "apartamentos"],
+  ];
+  try {
+    const payloads = await Promise.all(sources.map(([url, prefix]) => loadGoogleSheetJsonp(url, `ine${prefix}`)));
+    const totalRows = parseInePayload(payloads[0]);
+    const apartmentRows = parseInePayload(payloads[1]);
+    if (!totalRows.length || !apartmentRows.length) throw new Error("INE_EMPTY");
+    ineDataState.totalRows = totalRows;
+    ineDataState.apartmentRows = apartmentRows;
+    ineDataState.source = "Google Sheets INE";
+    ineDataState.loaded = true;
+    ineDataState.error = "";
+    updateMarketPriceFromSources();
+    return { totalRows, apartmentRows };
+  } catch (error) {
+    ineDataState.loaded = false;
+    ineDataState.error = error.message || "INE_LOAD_FAILED";
+    render();
+    return { totalRows: [], apartmentRows: [] };
+  }
+}
+
+function getIneRowsByLabel(rows, label, category = "") {
+  const normalizedLabel = normaliseSirText(label);
+  if (!normalizedLabel) return [];
+  return rows.filter((row) => normaliseSirText(row.location) === normalizedLabel && (!category || normaliseSirText(row.category) === normaliseSirText(category)));
+}
+
+function getIneRegionFallback(locality) {
+  const totalLocality = getIneRowsByLabel(ineDataState.totalRows, locality, "Total").find((row) => row.geocode);
+  if (!totalLocality) return null;
+  const code = totalLocality.geocode.toLowerCase();
+  const mapping = Object.entries(INE_NUTS_2024_TO_2013).find(([prefix]) => code.startsWith(prefix));
+  return mapping ? mapping[1] : null;
+}
+
+function getInePriceMatch() {
+  if (!ineDataState.loaded) return null;
+  const locality = fields.locality?.value || "";
+  const parish = fields.parish?.value || "";
+  const isApartment = fields.propertyType.value === "apartment";
+  const rows = isApartment ? ineDataState.apartmentRows : ineDataState.totalRows;
+  const category = isApartment ? "" : "Total";
+  const find = (label) => getIneRowsByLabel(rows, label, category).find((row) => Number.isFinite(row.value));
+
+  const parishMatch = find(parish);
+  if (parishMatch) {
+    return { low: parishMatch.value, high: parishMatch.value, mean: parishMatch.value, level: "freguesia", label: parishMatch.location, row: parishMatch };
+  }
+
+  const localityMatch = find(locality);
+  if (localityMatch) {
+    return { low: localityMatch.value, high: localityMatch.value, mean: localityMatch.value, level: "localização", label: localityMatch.location, row: localityMatch };
+  }
+
+  if (isApartment) {
+    const fallback = getIneRegionFallback(locality);
+    if (fallback) {
+      const regionLabel = fallback[0];
+      const regionMatch = find(regionLabel);
+      if (regionMatch) {
+        return { low: regionMatch.value, high: regionMatch.value, mean: regionMatch.value, level: "região", label: regionMatch.location, row: regionMatch, fallback: true };
+      }
+      for (const code of fallback.slice(1)) {
+        const codeMatch = rows.find((row) => row.geocode.toLowerCase() === code.toLowerCase() && Number.isFinite(row.value));
+        if (codeMatch) {
+          return { low: codeMatch.value, high: codeMatch.value, mean: codeMatch.value, level: "região", label: codeMatch.location, row: codeMatch, fallback: true };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function getInePriceSourceLabel() {
+  if (!ineDataState.loaded) {
+    return ineDataState.error
+      ? "Não foi possível carregar a referência INE."
+      : "Referência INE ainda não carregada.";
+  }
+  if (!ineDataState.lastMatch) return "INE carregado, mas não foi encontrada correspondência para esta localização.";
+  const match = ineDataState.lastMatch;
+  const period = match.row.period ? `, ${match.row.period}` : "";
+  const geography = match.row.geocode ? `, código ${match.row.geocode}` : "";
+  const fallback = match.fallback ? " Fallback regional aplicado por não existir correspondência mais local." : "";
+  return `INE: ${match.level} (${match.label}${geography}${period}) = ${formatCurrency(match.mean).replace(/\s?€/g, "")} €/m².${fallback} Valor mediano, não intervalo estatístico.`;
+}
+
 async function loadSirData() {
   if (typeof fetch !== "function") return;
   const urls = [SIR_GOOGLE_SHEET_CSV_URL, SIR_LOCAL_DATA_URL].filter(Boolean);
@@ -862,12 +1042,21 @@ function rowLabel(value) {
 }
 
 function updateSirPriceFromLocation() {
-  if (!sirDataState.loaded || sirPriceManuallyEdited) return;
-  const match = getSirPriceMatch();
-  sirDataState.lastMatch = match;
-  if (match) {
-    fields.pricePerSqmLow.value = String(Math.round(match.low));
-    fields.pricePerSqmHigh.value = String(Math.round(match.high));
+  updateMarketPriceFromSources();
+}
+
+function updateMarketPriceFromSources() {
+  const sirMatch = sirDataState.loaded && !sirPriceManuallyEdited ? getSirPriceMatch() : null;
+  const ineMatch = getInePriceMatch();
+  sirDataState.lastMatch = sirMatch;
+  ineDataState.lastMatch = ineMatch;
+
+  if (!sirPriceManuallyEdited && sirMatch) {
+    fields.pricePerSqmLow.value = String(Math.round(sirMatch.low));
+    fields.pricePerSqmHigh.value = String(Math.round(sirMatch.high));
+  } else if (!sirPriceManuallyEdited && ineMatch) {
+    fields.pricePerSqmLow.value = String(Math.round(ineMatch.low));
+    fields.pricePerSqmHigh.value = String(Math.round(ineMatch.high));
   }
   render();
 }
@@ -1220,6 +1409,7 @@ function getValuation() {
   const pricePerSqmLow = priceRange.low;
   const pricePerSqmHigh = priceRange.high;
   const sirPriceMean = Number.isFinite(sirDataState.lastMatch?.mean) ? sirDataState.lastMatch.mean : 0;
+  const inePriceMean = Number.isFinite(ineDataState.lastMatch?.mean) ? ineDataState.lastMatch.mean : 0;
   const pricePerSqmReference = sirPriceMean || (pricePerSqmLow + pricePerSqmHigh) / 2;
 
   const privateLowValue = privateArea * pricePerSqmLow;
@@ -1279,6 +1469,7 @@ function getValuation() {
     pricePerSqmHigh,
     pricePerSqmReference,
     sirPriceMean,
+    inePriceMean,
     privateLowValue,
     privateHighValue,
     privateValue,
@@ -1345,6 +1536,7 @@ function render() {
   output.detailWeightedArea.textContent = detailWeightedArea;
   output.detailBaseValue.textContent = detailBaseValue;
   if (output.sirPriceSource) output.sirPriceSource.textContent = getSirPriceSourceLabel();
+  if (output.inePriceSource) output.inePriceSource.textContent = getInePriceSourceLabel();
 
   printOutput.client.textContent = client;
   printOutput.location.textContent = location;
@@ -1455,6 +1647,7 @@ pdfButton.addEventListener("click", () => {
 
 render();
 loadSirData();
+loadIneData();
 
 if (window.location.protocol === "file:") {
   setUploadStatus("Modo de abertura incorreto. Para ler PDFs, abre ‘Abrir aplicação.command’ em vez de index.html.", "error");
