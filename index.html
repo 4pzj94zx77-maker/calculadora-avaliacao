@@ -9,10 +9,10 @@
       content="Calculadora de avaliação bancária para aquisição de imóveis com diferentes percentagens de LTV."
     />
     <title>Calculadora de Avaliação Bancária | RE/MAX Grupo Vantagem</title>
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="manifest.json?v=20260713-3" />
     <link rel="icon" type="image/png" href="assets/icons/favicon.png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260713-3" />
   </head>
   <body>
     <main class="app-shell" aria-labelledby="page-title">
@@ -36,19 +36,30 @@
 
         <form class="calculator-form" id="calculatorForm">
           <fieldset class="regime-field">
-            <legend>Regime de financiamento</legend>
-            <div class="regime-options" role="radiogroup" aria-label="Regime de financiamento">
-              <label>
+            <legend>Escolhe o regime de financiamento</legend>
+            <div
+              class="regime-options"
+              role="radiogroup"
+              aria-label="Regime de financiamento"
+              aria-describedby="regimeNote"
+            >
+              <label class="regime-card">
                 <input type="radio" name="regime" value="normal" checked />
-                <span>Regime normal</span>
+                <span class="regime-card-content">
+                  <strong>Regime normal</strong>
+                  <small>Financiamento até 90%</small>
+                </span>
               </label>
-              <label>
+              <label class="regime-card">
                 <input type="radio" name="regime" value="youth" />
-                <span>Garantia pública</span>
+                <span class="regime-card-content">
+                  <strong>Garantia pública</strong>
+                  <small>Financiamento a 100%</small>
+                </span>
               </label>
             </div>
             <p class="regime-note" id="regimeNote">
-              O LTV incide sobre o menor valor entre o preço de compra e a avaliação.
+              Até 90% do menor valor entre o preço de compra e a avaliação.
             </p>
           </fieldset>
 
@@ -100,7 +111,7 @@
           </fieldset>
 
           <fieldset class="ltv-field">
-            <legend>LTV</legend>
+            <legend id="ltvLegend">LTV</legend>
             <div class="ltv-options" role="radiogroup" aria-label="Percentagem LTV">
               <label>
                 <input type="radio" name="ltv" value="80" data-regime="normal" checked />
@@ -155,7 +166,7 @@
       </section>
     </main>
 
-    <script src="calculator.js" defer></script>
-    <script src="app.js" defer></script>
+    <script src="calculator.js?v=20260713-3" defer></script>
+    <script src="app.js?v=20260713-3" defer></script>
   </body>
 </html>

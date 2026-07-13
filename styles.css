@@ -209,52 +209,85 @@ input[aria-invalid="true"] {
 .regime-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
-.regime-options label {
+.regime-card {
   min-width: 0;
+  position: relative;
 }
 
 .regime-options input {
   position: absolute;
+  width: 1px;
+  height: 1px;
   opacity: 0;
-  pointer-events: none;
 }
 
-.regime-options span {
-  min-height: 52px;
-  display: grid;
-  place-items: center;
-  padding: 8px 10px;
+.regime-card-content {
+  min-height: 78px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 14px 16px;
   color: var(--brand-blue-dark);
   background: #ffffff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 820;
-  text-align: center;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  text-align: left;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
-.regime-options input:checked + span {
-  color: #ffffff;
-  background: var(--brand-blue);
+.regime-card-content strong {
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.regime-card-content small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.regime-options input:checked + .regime-card-content {
+  color: var(--brand-blue-dark);
+  background: var(--soft-blue);
   border-color: var(--brand-blue);
+  box-shadow:
+    0 0 0 1px var(--brand-blue),
+    inset 4px 0 0 var(--brand-red);
 }
 
-.regime-options input:focus-visible + span {
-  outline: 3px solid rgba(0, 74, 152, 0.2);
+.regime-options input:checked + .regime-card-content small {
+  color: var(--brand-blue);
+}
+
+.regime-options input:focus-visible + .regime-card-content {
+  outline: 3px solid rgba(0, 74, 152, 0.24);
   outline-offset: 2px;
 }
 
+.regime-card:hover .regime-card-content {
+  border-color: var(--brand-blue);
+  transform: translateY(-1px);
+}
+
 .regime-note {
-  margin: 10px 0 0;
-  padding: 11px 12px;
+  margin: 12px 0 0;
+  padding: 12px 14px;
   color: var(--muted);
-  background: var(--soft-blue);
+  background: var(--soft);
+  border-left: 4px solid var(--brand-red);
   border-radius: 8px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 620;
   line-height: 1.4;
 }
 
@@ -476,6 +509,16 @@ input[aria-invalid="true"] {
 
   .summary-list div {
     padding: 0 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .regime-options {
+    grid-template-columns: 1fr;
+  }
+
+  .regime-card-content {
+    min-height: 68px;
   }
 }
 

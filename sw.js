@@ -1,11 +1,12 @@
-const CACHE_NAME = "remax-avaliacao-v11";
+const ASSET_VERSION = "20260713-3";
+const CACHE_NAME = "remax-avaliacao-v12";
 const ASSETS = [
   "./",
   "index.html",
-  "styles.css",
-  "app.js",
-  "calculator.js",
-  "manifest.json",
+  `styles.css?v=${ASSET_VERSION}`,
+  `app.js?v=${ASSET_VERSION}`,
+  `calculator.js?v=${ASSET_VERSION}`,
+  `manifest.json?v=${ASSET_VERSION}`,
   "assets/logo-horizontal.png",
   "assets/logo-vertical.png",
   "assets/icons/favicon.png",

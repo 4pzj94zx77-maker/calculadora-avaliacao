@@ -1,6 +1,7 @@
 const propertyValueInput = document.querySelector("#propertyValue");
 const ltvInputs = Array.from(document.querySelectorAll("input[name='ltv']"));
 const ltvOptions = document.querySelector(".ltv-options");
+const ltvLegend = document.querySelector("#ltvLegend");
 const regimeInputs = Array.from(document.querySelectorAll("input[name='regime']"));
 const requiredValuation = document.querySelector("#requiredValuation");
 const resultLabel = document.querySelector("#resultLabel");
@@ -168,15 +169,13 @@ function updateRegime() {
   ltvOptions.classList.toggle("is-single-option", youthRegime);
 
   const preferredLtv = youthRegime ? "100" : "80";
-  const selectedAvailable = ltvInputs.some((input) => input.checked && !input.disabled);
-  if (!selectedAvailable) {
-    const preferredInput = ltvInputs.find((input) => input.value === preferredLtv);
-    if (preferredInput) preferredInput.checked = true;
-  }
+  const preferredInput = ltvInputs.find((input) => input.value === preferredLtv);
+  if (preferredInput) preferredInput.checked = true;
+  ltvLegend.textContent = youthRegime ? "Financiamento aplicado" : "LTV";
 
   regimeNote.textContent = youthRegime
-    ? "Financiamento configurado exclusivamente a 100%. O sinal já entregue é considerado a recuperar na escritura. Aplicável dos 18 aos 35 anos, para a primeira habitação própria permanente e valor de transação até 450.000 €. Todos os compradores têm de cumprir os requisitos. Contratos até 31 de dezembro de 2026 e sempre sujeitos à aprovação do banco."
-    : "O LTV incide sobre o menor valor entre o preço de compra e a avaliação. O limite geral para habitação própria permanente é 90%.";
+    ? "Financiamento a 100% do valor de transação. O sinal já entregue é considerado a recuperar na escritura."
+    : "Até 90% do menor valor entre o preço de compra e a avaliação.";
 }
 
 propertyValueInput.value = "";
@@ -203,7 +202,7 @@ signalModeInputs.forEach((input) =>
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch((error) => {
+    navigator.serviceWorker.register("sw.js?v=20260713-3").catch((error) => {
       console.error("Não foi possível activar o funcionamento offline.", error);
     });
   });
