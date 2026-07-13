@@ -21,20 +21,86 @@
     return { value: amount, valid: Number.isFinite(amount) && amount >= 0 };
   }
 
-  function calculate(propertyValue, signalValue, signalMode, ltv) {
+  function validateSignal(propertyValue, signalValue, signalMode) {
+    if (!Number.isFinite(signalValue) || signalValue < 0) {
+      return { valid: false, message: "O sinal não pode ser negativo." };
+    }
+
+    if (signalMode === "percent" && signalValue > 100) {
+      return { valid: false, message: "O sinal não pode ser superior a 100%." };
+    }
+
+    if (signalMode === "amount" && signalValue > propertyValue) {
+      return { valid: false, message: "O sinal não pode ser superior ao valor do imóvel." };
+    }
+
+    if (signalMode !== "percent" && signalMode !== "amount") {
+      return { valid: false, message: "Seleciona um tipo de sinal válido." };
+    }
+
+    return { valid: true, message: "" };
+  }
+
+  function calculate(propertyValue, signalValue, signalMode, ltv, regime = "normal") {
+    const ltvRate = ltv / 100;
+
+    if (
+      !Number.isFinite(propertyValue) ||
+      propertyValue <= 0 ||
+      !Number.isFinite(ltvRate) ||
+      ltvRate <= 0 ||
+      ltvRate > 1
+    ) {
+      throw new RangeError("Os valores do imóvel e do LTV têm de ser válidos.");
+    }
+
+    const signalValidation = validateSignal(propertyValue, signalValue, signalMode);
+    if (!signalValidation.valid) {
+      throw new RangeError(signalValidation.message);
+    }
+
+    if (regime !== "normal" && regime !== "youth") {
+      throw new RangeError("Seleciona um regime de financiamento válido.");
+    }
+
+    if (regime === "youth" && ltv !== 100) {
+      throw new RangeError("A garantia pública está configurada para financiamento a 100%.");
+    }
+
     const signalAmount =
       signalMode === "percent"
-        ? propertyValue * (Math.min(signalValue, 100) / 100)
-        : Math.min(signalValue, propertyValue);
-    const loan = Math.max(propertyValue - signalAmount, 0);
-    const ltvRate = ltv / 100;
+        ? propertyValue * (signalValue / 100)
+        : signalValue;
+
+    if (regime === "youth") {
+      return {
+        signalAmount,
+        loan: propertyValue,
+        maxLoanFromPurchase: propertyValue,
+        minimumSignal: 0,
+        additionalEquityNeeded: 0,
+        feasible: true,
+        neededValuation: propertyValue,
+        signalToRecover: signalAmount,
+      };
+    }
+
+    const loan = propertyValue - signalAmount;
+    const maxLoanFromPurchase = propertyValue * ltvRate;
+    const additionalEquityNeeded = Math.max(loan - maxLoanFromPurchase, 0);
+    const feasible = additionalEquityNeeded < 0.005;
 
     return {
       signalAmount,
       loan,
-      neededValuation: ltvRate > 0 ? loan / ltvRate : 0,
+      maxLoanFromPurchase,
+      minimumSignal: propertyValue - maxLoanFromPurchase,
+      additionalEquityNeeded,
+      feasible,
+      neededValuation: feasible ? loan / ltvRate : null,
+      signalToRecover: 0,
     };
   }
 
-  return { parsePortugueseNumber, calculate };
+  return { parsePortugueseNumber, validateSignal, calculate };
 });

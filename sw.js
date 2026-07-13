@@ -1,4 +1,4 @@
-const CACHE_NAME = "remax-avaliacao-v9";
+const CACHE_NAME = "remax-avaliacao-v11";
 const ASSETS = [
   "./",
   "index.html",
@@ -15,8 +15,12 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
-  self.skipWaiting();
+  event.waitUntil(
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(ASSETS))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -25,9 +29,9 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
-      ),
+      )
+      .then(() => self.clients.claim()),
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -38,25 +42,35 @@ self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     event.respondWith(
       fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("./", copy));
+        .then(async (response) => {
+          if (!response.ok) {
+            return (await caches.match("./")) || response;
+          }
+
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put("./", response.clone());
           return response;
         })
-        .catch(() => caches.match("./")),
+        .catch(async () => (await caches.match("./")) || Response.error()),
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const updated = fetch(event.request).then((response) => {
+  const update = fetch(event.request)
+    .then(async (response) => {
         if (response.ok && new URL(event.request.url).origin === self.location.origin) {
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(event.request, response.clone());
         }
         return response;
-      });
-      return cached || updated;
-    }),
+    })
+    .catch(() => undefined);
+
+  event.waitUntil(update.then(() => undefined));
+  event.respondWith(
+    caches
+      .match(event.request)
+      .then((cached) => cached || update)
+      .then((response) => response || Response.error()),
   );
 });

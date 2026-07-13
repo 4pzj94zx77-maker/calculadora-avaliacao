@@ -1,30 +1,34 @@
-# Estudo Mercado
+# Calculadora LTV
 
-Calculadora simples de valor indicativo de imóveis para apresentação a clientes.
+Web app simples para analisar a avaliação bancária necessária na aquisição de um imóvel, com base no valor do imóvel, no sinal, no LTV e no regime de financiamento.
 
-## Como usar
+## Utilização
 
-No macOS, abre `Abrir aplicação.command`. O lançador inicia um servidor apenas no computador e abre a aplicação em `http://127.0.0.1:8765`.
+Abra a aplicação no browser, escolha o regime, introduza o valor do imóvel, indique o sinal entregue e escolha o LTV pretendido. O sinal pode ser inserido em percentagem ou em numerário. A app apresenta:
 
-Não abras diretamente `index.html` através de um endereço `file://`. Os navegadores bloqueiam os módulos de leitura de PDF e OCR nesse modo.
+- avaliação bancária mínima, quando o cenário é compatível com o LTV;
+- capital próprio adicional necessário, quando uma avaliação superior não resolve o cenário;
+- financiamento estimado;
+- sinal considerado.
 
-## Publicação online
+O regime normal disponibiliza LTV de 80%, 85% e 90%. Para o fluxo operacional desta aplicação, a garantia pública para jovens está configurada exclusivamente com financiamento a 100%. O sinal já entregue não reduz o financiamento e é apresentado como montante a recuperar na escritura.
 
-Este projeto é estático. Depois de enviado para o GitHub, pode ser publicado em:
+## Publicação
 
-`Settings` -> `Pages` -> `Deploy from a branch` -> `main` -> `/root`
+Esta app é estática e pode ser publicada diretamente com GitHub Pages.
 
-O ficheiro principal é `index.html`.
+O script `publish-to-github.sh` actualiza o repositório sem reescrever o histórico.
 
-## Leitura de cadernetas
+## Fórmula
 
-A aplicação tenta primeiro extrair a camada de texto do PDF. Quando o documento é uma digitalização, utiliza OCR local em português através do Tesseract.js. O PDF e os dados reconhecidos permanecem no navegador e não são enviados para serviços externos.
+O financiamento pretendido corresponde ao valor do imóvel menos o sinal. O LTV incide sobre o menor valor entre o preço de aquisição e a avaliação bancária.
 
-O OCR pode demorar alguns segundos por página. Todos os campos encontrados devem ser confirmados antes de serem aplicados ao estudo.
+Se o financiamento pretendido ultrapassar o preço de aquisição multiplicado pelo LTV, nenhuma avaliação superior ao preço resolve a insuficiência de capitais próprios. Nesse caso, a app apresenta o montante adicional necessário e o sinal mínimo. Caso contrário, a avaliação mínima é calculada dividindo o financiamento pelo LTV.
 
-Dependências incluídas localmente:
+## Testes
 
-* PDF.js 5.6.205
-* Tesseract.js 7.0.0
-* Tesseract.js Core 7.0.0
-* Dados de idioma português do Tesseract.js 1.0.0
+Com Node.js instalado, execute:
+
+```sh
+node --test calculator.test.js
+```

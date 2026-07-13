@@ -1,7 +1,7 @@
 {
   "name": "Calculadora de Avaliação Bancária",
   "short_name": "Avaliação RE/MAX",
-  "description": "Calculadora de avaliação bancária para imóveis com percentagens LTV.",
+  "description": "Calculadora de avaliação bancária com LTV normal e garantia pública para jovens.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
