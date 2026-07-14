@@ -1,6 +1,6 @@
 const propertyValueInput = document.querySelector("#propertyValue");
 const ltvInputs = Array.from(document.querySelectorAll("input[name='ltv']"));
-const ltvOptions = document.querySelector(".ltv-options");
+const ltvField = document.querySelector(".ltv-field");
 const ltvLegend = document.querySelector("#ltvLegend");
 const regimeInputs = Array.from(document.querySelectorAll("input[name='regime']"));
 const requiredValuation = document.querySelector("#requiredValuation");
@@ -72,13 +72,14 @@ function updateCalculator() {
 
   const hasProperty = propertyValueInput.value.trim() !== "";
   if (!hasProperty) {
-    resultLabel.textContent = "Avaliação mínima necessária";
+    resultLabel.textContent = "Avaliação necessária";
     requiredValuation.textContent = "0 €";
     resultContext.textContent = "Introduza o valor do imóvel.";
     estimatedLoan.textContent = "0 €";
     consideredSignal.textContent = "0 €";
     signalSummaryLabel.textContent = getRegime() === "youth" ? "Sinal a recuperar" : "Sinal considerado";
     requiredValuation.closest(".result-panel").classList.remove("is-warning");
+    resultContext.classList.remove("is-hidden");
     return;
   }
 
@@ -90,6 +91,7 @@ function updateCalculator() {
     consideredSignal.textContent = "—";
     signalSummaryLabel.textContent = getRegime() === "youth" ? "Sinal a recuperar" : "Sinal considerado";
     requiredValuation.closest(".result-panel").classList.add("is-warning");
+    resultContext.classList.remove("is-hidden");
     return;
   }
 
@@ -117,16 +119,18 @@ function updateCalculator() {
     resultLabel.textContent = "Capital próprio adicional necessário";
     requiredValuation.textContent = formatMoney(result.additionalEquityNeeded);
     resultContext.textContent = `Uma avaliação superior ao preço não resolve este cenário. Com LTV de ${ltv}%, o sinal mínimo é ${formatMoney(result.minimumSignal)}.`;
+    resultContext.classList.remove("is-hidden");
     return;
   }
 
   resultPanel.classList.remove("is-warning");
-  resultLabel.textContent = "Avaliação mínima necessária";
+  resultLabel.textContent = "Avaliação necessária";
   requiredValuation.textContent = formatMoney(result.neededValuation);
   resultContext.textContent =
     getRegime() === "youth"
       ? `Financiamento a 100% do valor de transação. O sinal de ${formatMoney(result.signalToRecover)} é considerado a recuperar no acerto da escritura.`
       : "O banco considera o menor valor entre o preço de compra e a avaliação.";
+  resultContext.classList.toggle("is-hidden", getRegime() === "youth");
 }
 
 function formatInputValue() {
@@ -166,16 +170,17 @@ function updateRegime() {
     input.closest("label").classList.toggle("is-hidden", !available);
     if (!available) input.checked = false;
   });
-  ltvOptions.classList.toggle("is-single-option", youthRegime);
+  ltvField.classList.toggle("is-hidden", youthRegime);
+  ltvField.setAttribute("aria-hidden", String(youthRegime));
 
   const preferredLtv = youthRegime ? "100" : "80";
   const preferredInput = ltvInputs.find((input) => input.value === preferredLtv);
   if (preferredInput) preferredInput.checked = true;
-  ltvLegend.textContent = youthRegime ? "Financiamento aplicado" : "LTV";
+  ltvLegend.textContent = "LTV";
 
   regimeNote.textContent = youthRegime
-    ? "Financiamento a 100% do valor de transação. O sinal já entregue é considerado a recuperar na escritura."
-    : "Até 90% do menor valor entre o preço de compra e a avaliação.";
+    ? "Financiamento: 100% · Sinal recuperado na escritura."
+    : "Financiamento: até 90% · Incide sobre o menor valor.";
 }
 
 propertyValueInput.value = "";
@@ -202,7 +207,7 @@ signalModeInputs.forEach((input) =>
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js?v=20260713-3").catch((error) => {
+    navigator.serviceWorker.register("sw.js?v=20260714-2").catch((error) => {
       console.error("Não foi possível activar o funcionamento offline.", error);
     });
   });

@@ -1,61 +1,55 @@
 # Design QA
 
-Source visual truth path: `/Users/nunoferreira/.codex/generated_images/019f560a-d239-74d2-8ecb-bb63d80df276/exec-3ead7df9-f34d-490a-9344-4c63ed5d0786.png`
+source visual truth path: `/Users/nunoferreira/.codex/generated_images/019f5d6e-fe96-7770-a4f8-04bc33d2e9a9/exec-69f9daf7-ada5-4b30-9067-fd5cfaf2df97.png`
 
-Implementation screenshot path: `/Users/nunoferreira/Library/Mobile Documents/com~apple~CloudDocs/Nuno/Remax/programacao/calculadora_avaliacao/implementation-mobile-crop.png`
+implementation screenshot path: `/Users/nunoferreira/.codex/visualizations/2026/07/13/019f5d6e-fe96-7770-a4f8-04bc33d2e9a9/calculadora-preview-v1/implementacao-final.png`
 
-iPhone 16 Pro Max screenshot path: `/Users/nunoferreira/Library/Mobile Documents/com~apple~CloudDocs/Nuno/Remax/programacao/calculadora_avaliacao/iphone-16-pro-max.png`
+comparison path: `/Users/nunoferreira/.codex/visualizations/2026/07/13/019f5d6e-fe96-7770-a4f8-04bc33d2e9a9/calculadora-preview-v1/comparacao-final.png`
 
-White-background screenshot path: `/Users/nunoferreira/Library/Mobile Documents/com~apple~CloudDocs/Nuno/Remax/programacao/calculadora_avaliacao/iphone-16-pro-max-white-background.png`
+viewport: `390 x 844`
 
-Full comparison path: `/Users/nunoferreira/Library/Mobile Documents/com~apple~CloudDocs/Nuno/Remax/programacao/calculadora_avaliacao/qa-comparison.png`
+state: Garantia pública selecionada, imóvel de 250 000 €, sinal de 10%, financiamento de 250 000 € e sinal a recuperar de 25 000 €.
 
-Viewport: mobile app surface at 390 x 844, with a full-page capture for the complete calculator.
+## Full view comparison evidence
 
-Additional responsive viewport: iPhone 16 Pro Max at 430 x 932 CSS pixels.
+A comparação lado a lado confirma a mesma hierarquia, ordem de conteúdo, seleção de regime, campos, controlo de unidade e cartão consolidado de resultados. A implementação preserva a identidade RE/MAX com o ativo de logótipo real e mantém o conteúdo essencial dentro da vista móvel.
 
-State: property value 250 000 EUR, signal 10%, LTV 80%, calculated valuation 281 250 EUR.
-
-## Full-view comparison evidence
-
-The implementation preserves the selected concept's compact single-column structure, brand hierarchy, segmented controls, prominent navy result block, red accent, two-column summary, and restrained legal note. The official blue logo remains on white because the supplied alternative asset contains a white canvas and is not usable on a navy surface without damaging the brand artwork.
-
-## Focused region comparison evidence
-
-The controls, result block, and summary are readable at full-view scale, so separate detail crops were not required. Field spacing, selected states, result typography, brand colours, border radii, and divider treatment were inspected in the combined comparison.
+Não foi necessário um recorte focado adicional porque tipografia, campos, controlos, logótipo e valores permanecem legíveis na comparação integral a 390 px.
 
 ## Required fidelity surfaces
 
-Fonts and typography: system sans-serif remains close to the source, with comparable weights, hierarchy, line height and wrapping. No clipping or truncation found.
+Fonts and typography: escala, pesos, alinhamento e hierarquia correspondem à direção escolhida. A implementação usa a pilha tipográfica de sistema disponível no projeto.
 
-Spacing and layout rhythm: compact vertical spacing and two-column summary match the intended density. The implementation uses a slightly wider content margin to preserve touch targets and validation messages.
+Spacing and layout rhythm: cabeçalho compacto, regimes lado a lado, separador discreto, seletor de unidade integrado e resultados consolidados seguem a composição escolhida. Sem deslocamento horizontal a 390 px ou 320 px.
 
-Colours and visual tokens: navy, red, white and pale blue-grey match the RE/MAX direction. Solid brand colours replace the source image's unintended gradients.
+Colors and visual tokens: azul dominante, vermelho reservado ao divisor, unidade selecionada e sufixos. Contraste visual adequado nos estados verificados.
 
-Image quality and asset fidelity: the official high-resolution RE/MAX Grupo Vantagem logo is used without recolouring, distortion or replacement artwork.
+Image quality and asset fidelity: o logótipo RE/MAX existente é usado diretamente, sem substitutos desenhados em CSS ou SVG artesanal.
 
-Copy and content: all calculator labels, values, summary content and legal text are preserved. The result explanation was aligned with the selected concept.
-
-## Findings
-
-No actionable P0, P1 or P2 mismatches remain.
-
-P3: The white logo header differs from the navy source header. This is an intentional brand-safety decision because no verified transparent white logo is currently available.
+Copy and content: textos em português europeu, garantia pública a 100%, financiamento de 100% e sinal a recuperar na escritura.
 
 ## Comparison history
 
-Initial P2: the supplied white-logo candidate rendered as a white rectangle and hid the navy header. Fix: rejected that asset and restored the official logo on a white header. Post-fix evidence: the logo is sharp and fully readable in `qa-comparison.png`, with the red brand divider retained.
+### Pass 1
 
-Responsive P2: at desktop-sized capture widths, the header used a 22px panel padding with a 30px negative margin and inherited top padding, causing white protrusions around the rounded header. Fix: removed top padding at that breakpoint, matched the header margin to 22px, and clipped the panel contents to its rounded boundary. Post-fix evidence: `iphone-16-pro-max.png` shows a continuous rounded header with no side protrusions.
+P2: logótipo maior do que a referência, ausência do separador após o regime, texto contextual redundante no resultado da garantia pública e rótulos diferentes da direção escolhida.
 
-Requested visual adjustment: the exterior page background was changed from a navy and pale-grey treatment to solid white. Post-change evidence: `iphone-16-pro-max-white-background.png` shows a uniform white page while retaining RE/MAX blue and red inside the calculator.
+Fixes: logótipo reduzido, separador acrescentado, contexto redundante ocultado no cenário a 100% e rótulos alinhados para “Avaliação necessária” e “Financiamento”.
 
-## Interaction checks
+### Pass 2
 
-Property and signal inputs accepted values correctly. Percentage and euro signal modes switched correctly and cleared the previous value. LTV selection and the resulting valuation, loan and signal values remained correct. Browser console showed no errors or warnings.
+Post fix evidence: `comparacao-final.png`.
 
-## Follow-up polish
+Não restam diferenças P0, P1 ou P2. A distância vertical exata e pequenas diferenças de renderização tipográfica são P3 aceitáveis por resultarem do uso do logótipo e da tipografia reais da aplicação.
 
-If an official transparent white RE/MAX Grupo Vantagem logo becomes available, the header can be changed to navy for exact source fidelity.
+## Functional verification
+
+Testes automáticos: 9 de 9 aprovados.
+
+Interações verificadas: mudança entre regimes, garantia pública exclusivamente a 100%, sinal em percentagem, cálculo do sinal a recuperar, LTV de 90% no regime normal e ação Limpar.
+
+Responsive: sem overflow horizontal a 390 px e 320 px.
+
+Browser console errors: nenhum.
 
 final result: passed

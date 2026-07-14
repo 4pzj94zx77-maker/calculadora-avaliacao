@@ -1,5 +1,5 @@
-const ASSET_VERSION = "20260713-3";
-const CACHE_NAME = "remax-avaliacao-v12";
+const ASSET_VERSION = "20260714-2";
+const CACHE_NAME = "remax-avaliacao-v14";
 const ASSETS = [
   "./",
   "index.html",

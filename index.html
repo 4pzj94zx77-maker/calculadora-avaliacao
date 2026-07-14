@@ -9,24 +9,23 @@
       content="Calculadora de avaliação bancária para aquisição de imóveis com diferentes percentagens de LTV."
     />
     <title>Calculadora de Avaliação Bancária | RE/MAX Grupo Vantagem</title>
-    <link rel="manifest" href="manifest.json?v=20260713-3" />
+    <link rel="manifest" href="manifest.json?v=20260714-2" />
     <link rel="icon" type="image/png" href="assets/icons/favicon.png" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
-    <link rel="stylesheet" href="styles.css?v=20260713-3" />
+    <link rel="stylesheet" href="styles.css?v=20260714-2" />
   </head>
   <body>
     <main class="app-shell" aria-labelledby="page-title">
       <section class="calculator-panel">
         <header class="brand-header">
-          <button class="logo-button" id="resetButton" type="button" aria-label="Limpar calculadora">
-            <img
-              class="brand-logo"
-              src="assets/logo-horizontal.png"
-              alt="RE/MAX Grupo Vantagem"
-              width="2000"
-              height="556"
-            />
-          </button>
+          <img
+            class="brand-logo"
+            src="assets/logo-horizontal.png"
+            alt="RE/MAX Grupo Vantagem"
+            width="2000"
+            height="556"
+          />
+          <button class="reset-button" id="resetButton" type="button">Limpar</button>
         </header>
 
         <div class="title-block">
@@ -58,9 +57,7 @@
                 </span>
               </label>
             </div>
-            <p class="regime-note" id="regimeNote">
-              Até 90% do menor valor entre o preço de compra e a avaliação.
-            </p>
+            <p class="regime-note" id="regimeNote">Financiamento: até 90% · Incide sobre o menor valor.</p>
           </fieldset>
 
           <label class="field" for="propertyValue">
@@ -80,17 +77,19 @@
             <span class="field-error" id="propertyValueError" role="alert"></span>
           </label>
 
-          <fieldset class="signal-field">
-            <legend>Sinal entregue</legend>
-            <div class="signal-mode" role="radiogroup" aria-label="Tipo de sinal">
-              <label>
-                <input type="radio" name="signalMode" value="percent" checked />
-                <span>%</span>
-              </label>
-              <label>
-                <input type="radio" name="signalMode" value="amount" />
-                <span>€</span>
-              </label>
+          <fieldset class="signal-field" aria-labelledby="signalTitle">
+            <div class="signal-heading">
+              <span class="signal-title" id="signalTitle">Sinal entregue</span>
+              <div class="signal-mode" role="radiogroup" aria-label="Tipo de sinal">
+                <label>
+                  <input type="radio" name="signalMode" value="percent" checked />
+                  <span>%</span>
+                </label>
+                <label>
+                  <input type="radio" name="signalMode" value="amount" />
+                  <span>€</span>
+                </label>
+              </div>
             </div>
             <label class="field compact-field" for="signalValue">
               <span class="visually-hidden">Valor do sinal</span>
@@ -134,25 +133,22 @@
         </form>
 
         <section class="result-panel" aria-live="polite" aria-atomic="true">
-          <div>
-            <p class="result-label" id="resultLabel">Avaliação mínima necessária</p>
-            <strong id="requiredValuation">0 €</strong>
-            <p class="result-context" id="resultContext">
-              Introduza o valor do imóvel.
-            </p>
-          </div>
+          <dl class="result-list">
+            <div class="result-main">
+              <dt id="resultLabel">Avaliação necessária</dt>
+              <dd><strong id="requiredValuation">0 €</strong></dd>
+            </div>
+            <div>
+              <dt>Financiamento</dt>
+              <dd id="estimatedLoan">0 €</dd>
+            </div>
+            <div>
+              <dt id="signalSummaryLabel">Sinal considerado</dt>
+              <dd id="consideredSignal">0 €</dd>
+            </div>
+          </dl>
+          <p class="result-context" id="resultContext">Introduza o valor do imóvel.</p>
         </section>
-
-        <dl class="summary-list">
-          <div>
-            <dt>Financiamento estimado</dt>
-            <dd id="estimatedLoan">0 €</dd>
-          </div>
-          <div>
-            <dt id="signalSummaryLabel">Sinal considerado</dt>
-            <dd id="consideredSignal">0 €</dd>
-          </div>
-        </dl>
 
         <p class="legal-note">
           Valores indicativos. A aprovação depende da avaliação bancária, da solvabilidade
@@ -166,7 +162,7 @@
       </section>
     </main>
 
-    <script src="calculator.js?v=20260713-3" defer></script>
-    <script src="app.js?v=20260713-3" defer></script>
+    <script src="calculator.js?v=20260714-2" defer></script>
+    <script src="app.js?v=20260714-2" defer></script>
   </body>
 </html>
